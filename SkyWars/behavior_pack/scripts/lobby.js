@@ -7,7 +7,7 @@ import { LOGO } from "./logo.js";
 
 export const LOBBY = { x: 1000, y: 100, z: 0 };
 export const LOBBY_RADIUS = 58;     // para el área de carga (tickingarea)
-export const LOBBY_VERSION = 3;     // subir este número obliga a reconstruir el lobby
+export const LOBBY_VERSION = 4;     // subir este número obliga a reconstruir el lobby
 
 const HANG = { hanging: true };
 
@@ -111,7 +111,7 @@ export function generateLobby() {
   path(10, -1, 20, 1);    // al parkour
   path(-20, -1, -10, 1);  // al tiro con arco
   path(-1, 10, 1, 18);    // al laberinto
-  for (const [x, z] of [[0, -16], [0, -21], [15, 0], [-15, 0], [0, 14]]) {
+  for (const [x, z] of [[0, -16], [0, -21], [15, 0], [-11, 0], [0, 14]]) { // (ninguno dentro del campo de tiro)
     for (const s of [-2, 2]) {
       const [lx, lz] = x === 0 ? [x + s, z] : [x, z + s];
       lamp(b, lx, 0, lz, 3, "dark_oak_fence", "lantern");

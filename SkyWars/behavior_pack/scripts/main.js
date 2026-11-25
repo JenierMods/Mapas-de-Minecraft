@@ -47,6 +47,8 @@ const S = {
   maze: new Map(),       // id -> inicio (tick)
   archery: new Map(),    // id -> aciertos de la sesión
   sneak: new Map(),      // id -> ticks agachado (espectadores / parkour)
+  lookUp: new Map(),     // id -> ticks mirando hacia arriba (espectadores)
+  forced: false,
   menuCooldown: new Map(),
   holo: new Map(),       // id holograma -> entidad
 };
@@ -174,6 +176,9 @@ function setBlock(pos, id, states) {
 function setupWorld() {
   const d = overworld();
   const r = ARENA_BOUNDS.r + 2, lr = LOBBY_RADIUS + 2;
+  // Se quitan y se vuelven a crear: un mundo de la versión 1 tenía un área más chica con el mismo nombre
+  cmd(d, "tickingarea remove skywars");
+  cmd(d, "tickingarea remove skywars_lobby");
   cmd(d, `tickingarea add ${ARENA.x - r} 0 ${ARENA.z - r} ${ARENA.x + r} 319 ${ARENA.z + r} skywars true`);
   cmd(d, `tickingarea add ${LOBBY.x - lr} 0 ${LOBBY.z - lr} ${LOBBY.x + lr} 319 ${LOBBY.z + lr} skywars_lobby true`);
   for (const g of ["dodaylightcycle false", "doweathercycle false", "domobspawning false", "doimmediaterespawn true",
@@ -189,7 +194,10 @@ function setupWorld() {
 
 function lobbyLoaded() {
   const d = overworld();
-  for (const [x, z] of [[0, 0], [-45, -45], [45, 45], [-45, 45], [45, -45]]) if (!d.getBlock(labs({ x, y: 0, z }))) return false;
+  try {
+    for (const [x, z] of [[0, 0], [-55, -55], [55, 55], [-55, 55], [55, -55]]) if (!d.getBlock(labs({ x, y: 0, z }))) return false;
+    for (const [x, z] of [[-60, -60], [60, 60]]) if (!d.getBlock(abs({ x, y: 0, z }))) return false;
+  } catch { return false; } // chunk todavía sin cargar
   return true;
 }
 
@@ -198,16 +206,21 @@ function buildLobbyTasks() {
   // Los bloques de portal van al final, cuando el marco ya existe (si no, se rompen)
   const normal = blocks.filter((b) => b.id !== "portal"), portal = blocks.filter((b) => b.id === "portal");
   const d = overworld();
-  const tasks = [() => cmd(d, "fill -8 230 -8 8 233 8 air")]; // quita el lobby viejo (estaba encima de la arena)
-  for (const b of normal.concat(portal)) tasks.push(() => setBlock(labs(b), b.id, b.states));
-  return tasks;
+  const clear = [() => cmd(d, "fill -8 230 -8 8 233 8 air")]; // quita el lobby viejo (estaba encima de la arena)
+  // Limpia el área del lobby antes de construir, para que no queden restos de versiones anteriores.
+  // /fill admite 32.768 bloques: 117*117*2 = 27.378 (se hace uno por tick para no trabar el juego)
+  const r = LOBBY_RADIUS;
+  for (let y = LOBBY.y - 20; y <= LOBBY.y + 34; y += 2)
+    clear.push(() => cmd(d, `fill ${LOBBY.x - r} ${y} ${LOBBY.z - r} ${LOBBY.x + r} ${y + 1} ${LOBBY.z + r} air`));
+  const build = normal.concat(portal).map((b) => () => setBlock(labs(b), b.id, b.states));
+  return { clear, build };
 }
 
 function trySetup(retry = false) {
   if (S.ready || (S.setupStarted && !retry)) return;
   S.setupStarted = true;
   config ??= loadConfig();
-  setupWorld();
+  if (!retry) setupWorld(); // solo una vez: volver a crear el área de carga la descarga de nuevo
   if (!lobbyLoaded()) { system.runTimeout(() => trySetup(true), 40); return; }
   const finish = () => {
     S.ready = true;
@@ -216,12 +229,23 @@ function trySetup(retry = false) {
     each(players(), sendToLobby);
   };
   if (world.getDynamicProperty("sw:lobbyVersion") === LOBBY_VERSION) { finish(); return; }
-  each(players(), (p) => actionbar(p, "§bConstruyendo el lobby..."));
-  runTasks(buildLobbyTasks(), 600, () => {
+  // Mientras se construye, todos esperan flotando encima del lobby
+  each(players(), floatAboveLobby);
+  const { clear, build } = buildLobbyTasks();
+  runTasks(clear, 1, () => runTasks(build, 400, () => {
     world.setDynamicProperty("sw:lobbyVersion", LOBBY_VERSION);
     finish();
     say("¡Lobby listo! " + CREDITS);
-  });
+  }));
+}
+
+function floatAboveLobby(p) {
+  clearTags(p);
+  try { p.teleport(labs({ x: 0.5, y: 45, z: 8.5 }), { dimension: overworld() }); } catch {}
+  cmd(p, "gamemode adventure @s");
+  cmd(p, "effect @s slow_falling 120 0 true");
+  cmd(p, "effect @s resistance 120 255 true");
+  actionbar(p, "§bConstruyendo el lobby...");
 }
 
 function npcEntities(role) {
@@ -257,6 +281,7 @@ function holoText(h) {
     case "queue": {
       const q = queued().length;
       if (S.phase === "lobby") return `§e${q}/8 en la cola` + (S.lobbyTimer >= 0 ? ` §7· empieza en §f${S.lobbyTimer}s` : ` §7· mínimo ${config.minPlayers}`);
+      if (S.phase === "building") return `§bPreparando ${S.arena?.theme.name ?? "el mapa"}...`;
       return `§cPartida en curso §7(${S.arena?.theme.name ?? ""})\n§7Entra para mirarla`;
     }
     case "waiting": return `§l§eSala de espera§r\n§f${queued().length}/8 jugadores` + (S.lobbyTimer >= 0 ? `\n§aEmpieza en ${S.lobbyTimer}s` : "");
@@ -281,6 +306,14 @@ function spawnHolograms() {
       e.nameTag = holoText(h);
       S.holo.set(h.id, e);
     } catch (err) { console.warn(`[SkyWars] holograma ${h.id}: ${err}`); }
+  }
+}
+// Vuelve a crear los hologramas que alguien haya borrado (por ejemplo con /kill @e)
+function ensureHolograms() {
+  for (const h of Z().holograms) {
+    const e = S.holo.get(h.id);
+    if (e && valid(e)) continue;
+    try { const n = overworld().spawnEntity("jenier:texto", labs(h)); n.nameTag = holoText(h); S.holo.set(h.id, n); } catch {}
   }
 }
 function updateHolograms() {
@@ -322,7 +355,7 @@ function joinQueue(p) {
     resetActivities(p);
     cmd(p, "clear @s");
     spectate(p);
-    p.sendMessage("§7Estás mirando la partida. §eAgáchate 2 segundos§7 para volver al lobby.");
+    p.sendMessage("§7Estás mirando la partida. §eMira hacia arriba o agáchate 2 segundos§7 para volver al lobby.");
     return;
   }
   if (queued().length >= 8) { p.sendMessage("§cLa cola está llena (8 jugadores)."); bounceFromPortal(p); return; }
@@ -415,6 +448,7 @@ function startGame(by) {
   if (!S.ready || S.phase !== "lobby") return;
   const q = queued();
   const min = by ? 1 : config.minPlayers; // un admin puede forzar el inicio (prueba con 1 jugador)
+  S.forced = !!by;
   if (q.length < min) { by?.sendMessage(`§cHace falta al menos ${min} jugador(es) en la cola. Entra al portal.`); return; }
   const index = chooseMap();
   world.setDynamicProperty("sw:last", index);
@@ -430,6 +464,13 @@ function startGame(by) {
 function beginCountdown() {
   const arena = S.arena;
   const list = queued().sort(() => Math.random() - 0.5);
+  if (!S.forced && list.length < 2) {
+    // Alguien salió de la cola mientras se construía el mapa: se vuelve a esperar
+    S.phase = "lobby";
+    S.arena = null;
+    each(list, (p) => p.sendMessage("§eUn jugador salió de la cola. Esperando más jugadores..."));
+    return;
+  }
   const participants = list.slice(0, arena.spawns.length);
   const redSpawns = arena.spawns.filter((s) => s.team === "red");
   const blueSpawns = arena.spawns.filter((s) => s.team === "blue");
@@ -693,14 +734,20 @@ system.runInterval(() => {
       }
       return;
     }
+    try { if (p.dimension.id !== "minecraft:overworld") { sendToLobby(p); return; } } catch {}
     // Agacharse: los espectadores vuelven al lobby; en el parkour se sale del recorrido
     let sneaking = false;
     try { sneaking = p.isSneaking; } catch {}
     const n = sneaking ? (S.sneak.get(p.id) ?? 0) + 4 : 0;
     S.sneak.set(p.id, n);
     if (p.hasTag(T.dead)) {
-      if (n >= 40) { sendToLobby(p); p.sendMessage("§7Volviste al lobby."); }
-      else if (n > 0) actionbar(p, `§eVolviendo al lobby... ${Math.ceil((40 - n) / 20)}`);
+      let up = false;
+      try { up = p.getRotation().x < -80; } catch {}
+      const u = up ? (S.lookUp.get(p.id) ?? 0) + 4 : 0;
+      S.lookUp.set(p.id, u);
+      const m = Math.max(n, u);
+      if (m >= 40) { S.lookUp.delete(p.id); sendToLobby(p); p.sendMessage("§7Volviste al lobby."); }
+      else if (m > 0) actionbar(p, `§eVolviendo al lobby... ${Math.ceil((40 - m) / 20)}`);
       return;
     }
     if (n >= 20 && S.parkour.has(p.id)) {
@@ -719,7 +766,7 @@ let holoTimer = 0, npcTimer = 0, arrowTimer = 0;
 system.runInterval(() => {
   if (!S.ready) return;
   if (++holoTimer >= 3) { holoTimer = 0; updateHolograms(); }
-  if (++npcTimer >= 15) { npcTimer = 0; spawnNpcs(); }
+  if (++npcTimer >= 15) { npcTimer = 0; spawnNpcs(); ensureHolograms(); }
   if (++arrowTimer >= 5) {
     arrowTimer = 0;
     const r = LOBBY_RADIUS;
@@ -775,7 +822,7 @@ system.runInterval(() => {
       const parts = [`§b${S.arena.theme.name}`, `§fVivos: §a${alive.length}`, `§fTiempo: §e${fmt(S.time)}`];
       parts.push(S.suddenDeath ? "§4MUERTE SÚBITA" : `§fCofres: §6${fmt(Math.max(0, refillIn))}`);
       if (config.mode === 1) parts.push(`§c${alive.filter((x) => x.hasTag(T.red)).length} §7vs §9${alive.filter((x) => x.hasTag(T.blue)).length}`);
-      if (p.hasTag(T.dead)) parts.push("§7Agáchate para salir");
+      if (p.hasTag(T.dead)) parts.push("§7Mira arriba o agáchate para salir");
       actionbar(p, parts.join(" §7| "));
     });
     checkWin();
@@ -815,8 +862,7 @@ world.afterEvents.playerSpawn.subscribe((ev) => {
   if (ev.initialSpawn) {
     system.runTimeout(() => each([p], (pl) => title(pl, "§l§bSkyWars Rotativo", CREDITS, 80)), 40);
     if (!S.ready) {
-      cmd(p, "effect @s slow_falling 120 0 true");
-      cmd(p, "effect @s resistance 120 255 true");
+      floatAboveLobby(p);
       system.runTimeout(() => trySetup(), 20);
       return;
     }

@@ -54,6 +54,13 @@ while (q.length) {
 }
 if (!ok) err("el laberinto no tiene salida hacia la meta");
 
+// Campo de tiro despejado (solo el suelo)
+const A = zones.archery;
+for (let x = A.x1; x <= A.x2; x++) for (let z = A.z1; z <= A.z2; z++) for (let y = 1; y <= 3; y++) if (at(x, y, z)) err(`obstáculo en el campo de tiro: ${at(x, y, z).id} en ${x},${y},${z}`);
+// Trampolines: slime en el suelo
+for (const sx of [-21, 21]) if (at(sx, 0, 17)?.id !== "slime") err("falta el slime del trampolín");
+// Hologramas sin bloques encima de su posición
+for (const h of zones.holograms) if (at(Math.floor(h.x), Math.floor(h.y), Math.floor(h.z))) err(`holograma ${h.id} dentro de un bloque`);
 // Spawn libre y dentro del área
 const s = zones.spawn;
 if (at(Math.floor(s.x), 1, Math.floor(s.z)) || at(Math.floor(s.x), 2, Math.floor(s.z))) err("spawn ocupado");
