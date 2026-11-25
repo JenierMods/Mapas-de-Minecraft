@@ -2,7 +2,7 @@
 // Fases: lobby → construyendo → cuenta atrás (jaulas) → jugando → final → lobby
 import * as mc from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
-import { ARENA, ARENA_BOUNDS, LOBBY, THEMES, generateArena } from "./arenas.js";
+import { ARENA, ARENA_BOUNDS, BORDER, LOBBY, THEMES, generateArena } from "./arenas.js";
 import { fillChest } from "./loot.js";
 
 const { world, system, BlockPermutation, ItemStack } = mc;
@@ -66,6 +66,9 @@ function actionbar(p, text) {
 function abs(rel) { return { x: ARENA.x + rel.x, y: ARENA.y + rel.y, z: ARENA.z + rel.z }; }
 function playing() { return world.getPlayers().filter((p) => p.hasTag(T.playing)); }
 function teamOf(p) { return p.hasTag(T.red) ? "red" : p.hasTag(T.blue) ? "blue" : null; }
+function valid(p) { try { return p.isValid(); } catch { return true; } }
+// Ejecuta fn(p) para cada jugador; si uno falla (p. ej. se desconectó) los demás siguen.
+function each(list, fn) { for (const p of list) { try { if (valid(p)) fn(p); } catch (e) { console.warn(`[SkyWars] ${e}`); } } }
 function isAdmin(p) {
   const admins = world.getPlayers().filter((x) => x.hasTag(T.admin));
   return admins.length === 0 || p.hasTag(T.admin);
@@ -79,7 +82,10 @@ function runTasks(tasks, perTick, onDone) {
   const id = system.runInterval(() => {
     const end = Math.min(i + perTick, tasks.length);
     for (; i < end; i++) { try { tasks[i](); } catch {} }
-    if (i >= tasks.length) { system.clearRun(id); onDone?.(); }
+    if (i >= tasks.length) {
+      system.clearRun(id);
+      try { onDone?.(); } catch (e) { console.warn(`[SkyWars] ${e}`); }
+    }
   }, 1);
 }
 
@@ -163,7 +169,7 @@ function trySetup(retry = false) {
   if (!d.getBlock({ x: LOBBY.x, y: LOBBY.y, z: LOBBY.z })) { system.runTimeout(() => trySetup(true), 40); return; }
   runTasks(buildLobby(), 200, () => {
     S.ready = true;
-    for (const p of world.getPlayers()) if (!p.hasTag(T.playing)) sendToLobby(p);
+    each(world.getPlayers(), sendToLobby); // incluye jugadores que quedaron con etiquetas de una partida anterior
     say("¡Lobby listo! Usa la §ebrújula§r para abrir el menú.");
   });
 }
@@ -188,9 +194,12 @@ function sendToLobby(p) {
   cmd(p, "xp -1000L @s");
   p.teleport({ x: LOBBY.x + 0.5, y: LOBBY.y + 1, z: LOBBY.z + 0.5 }, { dimension: overworld() });
   cmd(p, "effect @s instant_health 1 20 true");
-  cmd(p, "effect @s saturation 2 20 true");
+  // En el lobby nadie recibe daño ni pasa hambre (se quita al empezar la partida)
+  cmd(p, "effect @s resistance 99999 255 true");
+  cmd(p, "effect @s saturation 99999 0 true");
+  cmd(p, "effect @s weakness 99999 255 true");
   system.runTimeout(() => {
-    try { p.getComponent("minecraft:inventory").container.setItem(4, lobbyItem()); } catch {}
+    try { if (valid(p) && !p.hasTag(T.playing)) p.getComponent("minecraft:inventory").container.setItem(4, lobbyItem()); } catch {}
   }, 2);
 }
 
@@ -244,14 +253,14 @@ function clearArenaTasks() {
   const tasks = [];
   const x1 = ARENA.x - r, x2 = ARENA.x + r, z1 = ARENA.z - r, z2 = ARENA.z + r;
   const d = overworld();
-  // Bloques por comando de /fill: máximo 32768. 93*93*3 = 25.947
-  for (let y = ARENA.y + yMin; y <= ARENA.y + yMax; y += 3) {
-    const y2 = Math.min(y + 2, ARENA.y + yMax);
+  // Bloques por comando de /fill: máximo 32.768. 121*121*2 = 29.282
+  for (let y = ARENA.y + yMin; y <= ARENA.y + yMax; y += 2) {
+    const y2 = Math.min(y + 1, ARENA.y + yMax);
     tasks.push(() => cmd(d, `fill ${x1} ${y} ${z1} ${x2} ${y2} ${z2} air`));
   }
-  tasks.push(() => cmd(d, "kill @e[type=item]"));
-  tasks.push(() => cmd(d, "kill @e[type=arrow]"));
-  tasks.push(() => cmd(d, "kill @e[type=xp_orb]"));
+  // Objetos, flechas, TNT, perlas, etc. que quedaron de la partida anterior
+  const box = `x=${x1},y=${ARENA.y + yMin - 40},z=${z1},dx=${2 * r},dy=${yMax - yMin + 40},dz=${2 * r}`;
+  tasks.push(() => cmd(d, `kill @e[type=!player,${box}]`));
   return tasks;
 }
 
@@ -286,8 +295,7 @@ function startGame(by) {
   S.votes.clear();
   say(`Preparando el mapa §b${index + 1}: ${S.arena.theme.name}§r · Modo §e${MODES[config.mode]}§r · Botín §e${LOOTS[config.loot]}`);
 
-  const tasks = clearArenaTasks().concat(buildArenaTasks(S.arena));
-  runTasks(tasks, 400, () => beginCountdown());
+  runTasks(clearArenaTasks(), 1, () => runTasks(buildArenaTasks(S.arena), 250, beginCountdown));
 }
 
 function beginCountdown() {
@@ -300,11 +308,12 @@ function beginCountdown() {
   const redSpawns = arena.spawns.filter((s) => s.team === "red");
   const blueSpawns = arena.spawns.filter((s) => s.team === "blue");
   const freeSpawns = [...arena.spawns];
-  participants.forEach((p, i) => {
+  let i = 0;
+  each(participants, (p) => {
     clearTags(p);
     let spawn;
     if (config.mode === 1) {
-      const team = i % 2 === 0 ? "red" : "blue";
+      const team = i++ % 2 === 0 ? "red" : "blue";
       p.addTag(team === "red" ? T.red : T.blue);
       spawn = (team === "red" ? redSpawns : blueSpawns).shift();
     } else {
@@ -312,8 +321,9 @@ function beginCountdown() {
     }
     p.addTag(T.playing);
     for (const [pos, id] of cageBlocks(spawn, teamOf(p))) setBlock(abs(pos), id);
+    try { p.getComponent("minecraft:inventory").container.setItem(4, undefined); } catch {} // brújula bloqueada
     cmd(p, "clear @s");
-    cmd(p, "gamemode survival @s");
+    cmd(p, "gamemode adventure @s"); // en la jaula no se puede romper el cristal
     cmd(p, "effect @s clear");
     cmd(p, "effect @s instant_health 1 20 true");
     cmd(p, "effect @s saturation 3 20 true");
@@ -322,12 +332,11 @@ function beginCountdown() {
     S.spawnOf.set(p.id, spawn);
     if (config.mode === 1) title(p, teamOf(p) === "red" ? "§cEquipo ROJO" : "§9Equipo AZUL", "¡Elimina al otro equipo!");
   });
-  for (const p of extra) { spectate(p); p.sendMessage("§7La partida está llena (máx. 8). Estás como espectador."); }
+  each(extra, (p) => { spectate(p); p.sendMessage("§7La partida está llena (máx. 8). Estás como espectador."); });
 
-  S.phase = "countdown";
+  S.startCount = playing().length; // con 1 jugador (modo prueba) la partida no termina sola
   S.countdown = 10;
-  S.startCount = participants.length; // con 1 jugador (modo prueba) la partida no termina sola
-  if (!participants.length) { S.phase = "lobby"; }
+  S.phase = S.startCount ? "countdown" : "lobby";
 }
 
 function openCages() {
@@ -337,7 +346,7 @@ function openCages() {
   S.time = 0;
   S.nextRefill = config.refill;
   S.suddenDeath = false;
-  for (const p of playing()) title(p, "§a¡A luchar!", `Mapa: ${S.arena.theme.name}`);
+  each(playing(), (p) => { cmd(p, "gamemode survival @s"); title(p, "§a¡A luchar!", `Mapa: ${S.arena.theme.name}`); });
   cmd(overworld(), "playsound random.levelup @a");
 }
 
@@ -352,9 +361,8 @@ function refillChests(first = false) {
       if (block.typeId !== "minecraft:chest") { setBlock(pos, "chest"); block = overworld().getBlock(pos); }
       const inv = block.getComponent("minecraft:inventory");
       // El primer cofre de cada isla de aparición trae bloques + espada asegurados
-      const islandKey = c.kind === "spawn" ? `${Math.round(c.x / 10)},${Math.round(c.z / 10)}` : null;
-      const guaranteed = first && islandKey && !seenSpawnIsland.has(islandKey);
-      if (islandKey) seenSpawnIsland.add(islandKey);
+      const guaranteed = first && c.kind === "spawn" && !seenSpawnIsland.has(c.island);
+      if (c.kind === "spawn") seenSpawnIsland.add(c.island);
       fillChest(inv.container, c.kind, tier, guaranteed);
     } catch {}
   }
@@ -395,13 +403,13 @@ function endGame(winners, team) {
   if (team) text = team === "red" ? "§c¡Gana el equipo ROJO!" : "§9¡Gana el equipo AZUL!";
   else if (winners.length === 1) text = `§a¡${winners[0].name} gana!`;
   else text = "§7Empate";
-  for (const p of world.getPlayers()) title(p, text, `Mapa: ${S.arena.theme.name}`);
+  each(world.getPlayers(), (p) => title(p, text, `Mapa: ${S.arena?.theme.name ?? ""}`));
   say(text);
   for (const w of winners) cmd(overworld(), `scoreboard players add "${w.name}" sw_wins 1`);
   cmd(overworld(), "playsound random.totem @a");
   system.runTimeout(() => {
-    for (const p of world.getPlayers()) sendToLobby(p);
     S.phase = "lobby";
+    each(world.getPlayers(), sendToLobby);
     S.arena = null;
     say("De vuelta al lobby. La siguiente partida usará otro mapa.");
   }, 120);
@@ -429,7 +437,7 @@ system.runInterval(() => {
       for (const p of players) actionbar(p, `§7Esperando jugadores §f${players.length}/${need} §7· usa la §ebrújula§7 para el menú`);
     }
     // Que nadie se caiga del lobby
-    for (const p of players) if (p.location.y < LOBBY.y - 5) sendToLobby(p);
+    each(players, (p) => { if (p.location.y < LOBBY.y - 5) sendToLobby(p); });
     return;
   }
 
@@ -455,16 +463,16 @@ system.runInterval(() => {
     if (!S.suddenDeath && S.time >= limit) {
       S.suddenDeath = true;
       say("§4§l¡MUERTE SÚBITA!§r Todos al centro.");
-      const c = abs(S.arena.center);
-      for (const p of playing()) {
-        p.teleport({ x: c.x + (Math.random() * 6 - 3), y: c.y + 1, z: c.z + (Math.random() * 6 - 3) }, { dimension: overworld() });
-        cmd(p, "effect @s glowing 9999 0 true");
-      }
+      const spots = S.arena.safe.length ? [...S.arena.safe].sort(() => Math.random() - 0.5) : [S.arena.center];
+      each(playing(), (p) => {
+        const s = abs(spots[Math.floor(Math.random() * spots.length)]);
+        p.teleport({ x: s.x + 0.5, y: s.y, z: s.z + 0.5 }, { dimension: overworld(), facingLocation: abs(S.arena.center) });
+      });
     }
     if (S.suddenDeath && S.time >= limit + 120) { endGame([], null); return; }
     const alive = playing();
     const refillIn = S.nextRefill - S.time;
-    for (const p of players) {
+    each(players, (p) => {
       const parts = [`§b${S.arena.theme.name}`, `§fVivos: §a${alive.length}`, `§fTiempo: §e${fmt(S.time)}`];
       if (!S.suddenDeath) parts.push(`§fRecarga: §6${fmt(Math.max(0, refillIn))}`);
       else parts.push("§4MUERTE SÚBITA");
@@ -473,7 +481,7 @@ system.runInterval(() => {
         parts.push(`§c${r} §7vs §9${b}`);
       }
       actionbar(p, parts.join(" §7| "));
-    }
+    });
     checkWin();
   }
 }, 20);
@@ -482,15 +490,25 @@ system.runInterval(() => {
 system.runInterval(() => {
   if (S.phase !== "playing" && S.phase !== "countdown") return;
   const limitY = ARENA.y + ARENA_BOUNDS.yMin - 8;
-  for (const p of playing()) {
-    if (p.location.y < limitY) {
+  const topY = ARENA.y + ARENA_BOUNDS.yMax - 4;
+  each(playing(), (p) => {
+    const l = p.location;
+    if (l.y < limitY) {
       if (S.phase === "countdown") { // por si alguien se sale de la jaula
         const s = S.spawnOf.get(p.id); if (s) p.teleport({ x: ARENA.x + s.x + 0.5, y: ARENA.y + s.y + 3, z: ARENA.z + s.z + 0.5 });
-        continue;
+        return;
       }
       try { p.kill(); } catch { cmd(p, "kill @s"); }
+      return;
     }
-  }
+    // Límite del mapa: nadie construye fuera del área que se limpia entre partidas
+    const dx = l.x - ARENA.x, dz = l.z - ARENA.z, dist = Math.hypot(dx, dz);
+    if (dist > BORDER || l.y > topY) {
+      const k = dist > BORDER ? (BORDER - 3) / dist : 1;
+      p.teleport({ x: ARENA.x + dx * k, y: Math.min(l.y, topY - 2), z: ARENA.z + dz * k });
+      actionbar(p, "§c¡Límite del mapa!");
+    }
+  });
 }, 5);
 
 // ---------------------------------------------------------------------------
@@ -528,14 +546,19 @@ world.afterEvents.entityDie.subscribe((ev) => {
 world.afterEvents.playerSpawn.subscribe((ev) => {
   const p = ev.player;
   if (ev.initialSpawn) {
-    if (!S.ready) { system.runTimeout(trySetup, 20); return; }
-    if (S.phase === "lobby" || S.phase === "building") system.runTimeout(() => sendToLobby(p), 5);
-    else system.runTimeout(() => spectate(p), 5);
+    if (!S.ready) {
+      cmd(p, "effect @s slow_falling 60 0 true");
+      cmd(p, "effect @s resistance 60 255 true");
+      system.runTimeout(() => trySetup(), 20);
+      return;
+    }
+    if (S.phase === "lobby" || S.phase === "building") system.runTimeout(() => each([p], sendToLobby), 5);
+    else system.runTimeout(() => each([p], spectate), 5);
     return;
   }
   // Reaparición tras morir
-  if (p.hasTag(T.dead) && S.arena) system.runTimeout(() => spectate(p), 2);
-  else if (S.phase === "lobby") system.runTimeout(() => sendToLobby(p), 2);
+  if (p.hasTag(T.dead) && S.arena) system.runTimeout(() => each([p], spectate), 2);
+  else if (S.phase === "lobby") system.runTimeout(() => each([p], sendToLobby), 2);
 });
 
 world.afterEvents.playerLeave.subscribe(() => system.runTimeout(checkWin, 2));
@@ -571,6 +594,7 @@ function mainMenu(p) {
         startGame(p); break;
       case 4:
         if (!isAdmin(p)) { p.sendMessage("§cSolo un admin (etiqueta sw_admin) puede configurar."); return; }
+        if (S.phase !== "lobby") { p.sendMessage("§cLa configuración solo se cambia en el lobby."); return; }
         configMenu(p); break;
     }
   }).catch(() => {});
@@ -622,6 +646,7 @@ function configMenu(p) {
   THEMES.forEach((t, i) => f.toggle(`Mapa ${i + 1}: ${t.name}`, config.enabledMaps[i] !== false));
   f.show(p).then((r) => {
     if (r.canceled || !r.formValues) return;
+    if (S.phase !== "lobby") { p.sendMessage("§cLa partida ya empezó; la configuración no se guardó."); return; }
     const v = r.formValues;
     config.mode = v[0]; config.loot = v[1]; config.rotation = v[2]; config.autoStart = v[3];
     config.minPlayers = v[4]; config.lobbyWait = v[5]; config.refill = v[6]; config.timeLimit = v[7];

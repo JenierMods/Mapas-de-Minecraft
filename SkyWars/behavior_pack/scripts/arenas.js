@@ -7,7 +7,9 @@
 // Centro de la arena (las islas se construyen en el cielo, sobre cualquier mundo).
 export const ARENA = { x: 0, y: 180, z: 0 };
 // Caja que se limpia antes de construir cada arena (relativa a ARENA).
-export const ARENA_BOUNDS = { r: 46, yMin: -22, yMax: 30 };
+export const ARENA_BOUNDS = { r: 60, yMin: -22, yMax: 44 };
+// Radio a partir del cual se empuja a los jugadores de vuelta (límite del mapa).
+export const BORDER = 56;
 // Lobby flotante encima del centro de la arena.
 export const LOBBY = { x: 0, y: 230, z: 0, r: 8 };
 
@@ -114,7 +116,8 @@ function island(b, rng, theme, cx, cy, cz, radius, depth) {
   const lobes = Array.from({ length: 12 }, () => 0.8 + rng() * 0.4);
   const surface = [];
   for (let dy = 0; dy <= depth; dy++) {
-    const f = 1 - dy / (depth + 1);
+    // dy 0 y 1 usan el mismo radio: así la arena (bloque con gravedad) siempre tiene soporte debajo
+    const f = 1 - Math.max(0, dy - 1) / (depth + 1);
     const layerR = radius * Math.pow(f, 0.85);
     const R = Math.ceil(layerR * 1.25) + 1;
     for (let dx = -R; dx <= R; dx++) {
@@ -175,7 +178,7 @@ function tree(b, rng, kind, x, y, z) {
       const h = 7 + Math.floor(rng() * 3);
       for (let i = 1; i <= h; i++) b.set(x, y + i, z, "jungle_log");
       blob(b, x, y + h, z, 3, "jungle_leaves", LEAVES, rng);
-      for (let i = 2; i < h - 1; i++) if (rng() < 0.5) b.setIfAir(x + 1, y + i, z, "vine");
+      for (let i = 2; i < h - 1; i++) if (rng() < 0.5) b.setIfAir(x + 1, y + i, z, "vine", { vine_direction_bits: 2 });
       break;
     }
     case "cherry": {
@@ -241,6 +244,7 @@ function decorate(b, rng, theme, surface, top, density, avoid) {
     if (rng() > density) continue;
     if (avoid.some((a) => Math.abs(a.x - p.x) <= 1 && Math.abs(a.z - p.z) <= 1)) continue;
     if (b.has(p.x, top + 1, p.z)) continue;
+    if (b.get(p.x, top, p.z)?.id !== theme.surface) continue; // no flores sobre agua, cofres, etc.
     b.set(p.x, top + 1, p.z, theme.deco[Math.floor(rng() * theme.deco.length)]);
   }
 }
@@ -303,7 +307,6 @@ function centerFeature(b, rng, theme, top) {
           if (Math.abs(dx) === r || Math.abs(dz) === r || lvl === 3) b.set(dx, y + 1 + lvl, dz, rng() < 0.4 ? "mossy_cobblestone" : "cobblestone");
       }
       b.map.delete(`0,${y + 1},-4`); b.map.delete(`0,${y + 2},-4`);
-      for (let i = 0; i < 6; i++) b.setIfAir(-4 + i, y + 3, -5, "vine");
       break;
     case "monument":
       for (let i = 1; i <= 5; i++) for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) b.set(dx, y + i, dz, "prismarine_bricks");
@@ -392,7 +395,7 @@ export function generateArena(index) {
     for (const [cx, cz] of [[x + ox + px, z + oz + pz], [x + ox - px, z + oz - pz]]) {
       if (!b.has(cx, y, cz)) continue;
       b.set(cx, y + 1, cz, "chest");
-      chests.push({ x: cx, y: y + 1, z: cz, kind: "spawn" });
+      chests.push({ x: cx, y: y + 1, z: cz, kind: "spawn", island: i });
     }
     const tx = x - Math.round(Math.cos(a) * 3) + px, tz = z - Math.round(Math.sin(a) * 3) + pz;
     if (b.has(tx, y, tz)) tree(b, rng, theme.tree, tx, y, tz);
@@ -400,5 +403,24 @@ export function generateArena(index) {
     spawns.push({ x, y: y + 1, z, team: i < SPAWN_COUNT / 2 ? "red" : "blue" });
   }
 
-  return { theme, index, blocks: b.list(), spawns, chests, center: { x: 0, y: 1, z: 0 } };
+  // Despejar el espacio de las jaulas (incluida la caída hasta la isla) y encima de cada cofre,
+  // por si un árbol o decoración quedó encima.
+  for (const sp of spawns)
+    for (let dy = 0; dy <= 5; dy++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++)
+      b.map.delete(`${sp.x + dx},${sp.y + dy},${sp.z + dz}`);
+  for (const ch of chests) b.map.delete(`${ch.x},${ch.y + 1},${ch.z}`);
+
+  // Puntos seguros de la isla central (suelo sólido y 2 bloques de aire encima),
+  // usados para la muerte súbita sin meter a nadie dentro de un bloque.
+  const safe = [];
+  for (const p of c.surface) {
+    const d = Math.hypot(p.x, p.z);
+    if (d < 5 || d > 9) continue;
+    const ground = b.get(p.x, 0, p.z);
+    if (!ground || ["water", "chest"].includes(ground.id)) continue;
+    if (b.has(p.x, 1, p.z) || b.has(p.x, 2, p.z)) continue;
+    safe.push({ x: p.x, y: 1, z: p.z });
+  }
+
+  return { theme, index, blocks: b.list(), spawns, chests, safe, center: { x: 0, y: 1, z: 0 } };
 }
