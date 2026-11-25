@@ -270,7 +270,7 @@ const HOVER = { x: 0.5, y: 45, z: 8.5 };
 function loadingScreen(p) {
   cmd(p, "camera @s fade time 0 2 0.5 color 0 0 0");
   const pct = S.loading ? Math.floor((100 * S.loading.done) / Math.max(1, S.loading.total)) : 0;
-  title(p, "§l§bSkyWars JNR OFC", `§7Cargando el mundo... §f${pct}%`, 40);
+  title(p, "§l§bSkyWars", `§7Cargando el mundo... §f${pct}%`, 40);
   actionbar(p, CREDITS);
 }
 function startLoading(p) {
@@ -288,7 +288,7 @@ function endLoading(p) {
   sendToLobby(p);
   // Sale de la pantalla negra con un fundido suave, ya con todo construido
   cmd(p, "camera @s fade time 0 0.4 1.2 color 0 0 0");
-  title(p, "§l§bSkyWars JNR OFC", CREDITS, 70);
+  title(p, "§l§bSkyWars", CREDITS, 70);
 }
 // Mientras carga: mantener la pantalla negra y al jugador quieto
 system.runInterval(() => {
@@ -332,7 +332,7 @@ function holoText(h) {
   switch (h.id) {
     case "queue": {
       const q = queued().length;
-      if (S.phase === "lobby") return `§e${q}/8 en la cola` + (S.lobbyTimer >= 0 ? ` §7· empieza en §f${S.lobbyTimer}s` : ` §7· mínimo ${config.minPlayers}`);
+      if (S.phase === "lobby") return `§e${q}/8 en la cola` + (S.lobbyTimer >= 0 ? ` §7· empieza en §f${S.lobbyTimer}s` : soloTest() ? " §7· §bmodo prueba" : ` §7· mínimo ${config.minPlayers}`);
       if (S.phase === "building") return `§bPreparando ${S.arena?.theme.name ?? "el mapa"}...`;
       return `§cPartida en curso §7(${S.arena?.theme.name ?? ""})\n§7Entra para mirarla`;
     }
@@ -394,6 +394,7 @@ function lobbyEffects(p) {
 function sendToLobby(p) {
   clearTags(p);
   resetActivities(p);
+  cmd(p, "inputpermission set @s movement enabled"); // por si el juego se cerró durante la pantalla de carga
   cmd(p, "gamemode adventure @s");
   cmd(p, "clear @s");
   cmd(p, "xp -1000L @s");
@@ -427,7 +428,8 @@ function leaveQueue(p) {
 function bounceFromPortal(p) { p.teleport(labs({ x: 0.5, y: 1, z: Z().portal.z + 4.5 }), { dimension: overworld() }); }
 
 function spectate(p) {
-  clearTags(p);
+  // Conserva la etiqueta de equipo: si su equipo gana, el que ya cayó también suma la victoria
+  for (const t of [T.playing, T.queue, T.arch]) p.removeTag(t);
   p.addTag(T.dead);
   cmd(p, "gamemode spectator @s");
   const c = abs(S.arena?.center ?? { x: 0, y: 0, z: 0 });
@@ -619,7 +621,11 @@ function checkWin() {
   const alive = playing();
   if (config.mode === 1) {
     const teams = new Set(alive.map(teamOf));
-    if (S.startCount === 1 ? alive.length === 0 : teams.size <= 1) endGame(alive, teams.size ? [...teams][0] : null);
+    if (S.startCount === 1 ? alive.length === 0 : teams.size <= 1) {
+      const team = teams.size ? [...teams][0] : null;
+      // La victoria es para todo el equipo, también para los que ya habían caído
+      endGame(team ? players().filter((p) => inGame(p) && teamOf(p) === team) : alive, team);
+    }
   } else if (alive.length <= (S.startCount === 1 ? 0 : 1)) endGame(alive, null);
 }
 
@@ -932,7 +938,6 @@ world.afterEvents.entityDie.subscribe((ev) => {
 world.afterEvents.playerSpawn.subscribe((ev) => {
   const p = ev.player;
   if (ev.initialSpawn) {
-    system.runTimeout(() => each([p], (pl) => title(pl, "§l§bSkyWars Rotativo", CREDITS, 80)), 40);
     if (!S.ready) {
       startLoading(p);
       system.runTimeout(() => trySetup(), 20);

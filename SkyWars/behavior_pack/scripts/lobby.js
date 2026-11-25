@@ -140,7 +140,7 @@ export function generateLobby() {
     const ang = (a / 8) * Math.PI * 2 + Math.PI / 8;
     lamp(b, Math.round(Math.cos(ang) * 9.3), 0, Math.round(Math.sin(ang) * 9.3), 3, "dark_oak_fence", "lantern");
   }
-  ZONES.holograms.push({ id: "credits", x: 0.5, y: 7.2, z: 0.5, text: "§l§bSkyWars JNR OFC§r\n§fCreado por §a§lJenierMods OFC" });
+  ZONES.holograms.push({ id: "credits", x: 0.5, y: 7.2, z: 0.5, text: "§l§bSkyWars§r\n§fCreado por §a§lJenierMods OFC" });
   ZONES.fountain = { x: 0.5, z: 0.5, r: 3 };
   ZONES.holograms.push({ id: "welcome", x: 0.5, y: 3.2, z: 10.5, text: "§e¡Bienvenido!\n§7Entra al §5portal§7 para jugar\n§7Toca a los aldeanos para kits, mapas y más" });
 

@@ -24,7 +24,7 @@ El lobby es una isla aparte, a 1000 bloques de la arena, así que desde las isla
 | **Trampolines** | Bloques de slime con torres para saltar |
 | **Hologramas** | Textos flotantes: créditos, estado de la cola, **ranking de victorias** y **mejores tiempos del parkour** en vivo |
 
-En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos. Sobre la fuente de la plaza está el nombre **SkyWars JNR OFC** con los créditos. Si alguien cae dentro de la fuente, a los **30 segundos** vuelve solo al punto de inicio. El portal se revisa y se repara solo cada 15 segundos.
+En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos. Sobre la fuente de la plaza está el nombre **SkyWars** con los créditos. Si alguien cae dentro de la fuente, a los **30 segundos** vuelve solo al punto de inicio. El portal se revisa y se repara solo cada 15 segundos.
 
 | | |
 |---|---|
@@ -77,7 +77,7 @@ Además, todos los mapas tienen **túneles** que atraviesan la isla central, con
 | `dist/SkyWars-Rotativo.mcaddon` | Solo los packs, para añadirlos a otro mundo (actívalos los dos) |
 
 - Hacen falta los **trucos activados** (para `gamerule`, `tickingarea` y `fill`).
-- La primera vez, el lobby se construye solo en unos segundos. Mientras tanto se ve una **pantalla de carga** en negro ("SkyWars JNR OFC · Cargando… %"), sin poder moverse. Cuando todo está listo, apareces en la plaza con un fundido. Las veces siguientes la pantalla dura solo un instante.
+- La primera vez, el lobby se construye solo en unos segundos. Mientras tanto se ve una **pantalla de carga** en negro ("SkyWars · Cargando… %"), sin poder moverse. Cuando todo está listo, apareces en la plaza con un fundido. Las veces siguientes la pantalla dura solo un instante.
 - **Sobre la miniatura del mundo:** Minecraft siempre reemplaza la imagen de un mundo por una captura al salir de él, y no hay forma de bloquearlo. La **plantilla** sí conserva su imagen y sus créditos en la lista de plantillas, así que úsala para que la portada siempre se vea bien.
 
 ### Admins
