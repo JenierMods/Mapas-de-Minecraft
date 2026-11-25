@@ -20,13 +20,17 @@ const LOOTS = ["Normal", "Extremo"];
 const ROTATIONS = ["Secuencial (1 → 10)", "Aleatoria", "Votación de jugadores"];
 const DEFAULT_CONFIG = {
   mode: 0, loot: 0, rotation: 0, autoStart: true, minPlayers: 2,
-  refill: 120, timeLimit: 10, lobbyWait: 20, kits: true, enabledMaps: THEMES.map(() => true),
+  refill: 120, timeLimit: 10, lobbyWait: 30, kits: true, enabledMaps: THEMES.map(() => true),
 };
 let config;
 function loadConfig() {
   try {
     const raw = world.getDynamicProperty("sw:config");
-    if (typeof raw === "string") return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+    if (typeof raw === "string") {
+      const c = { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+      if (!c.v3) { c.lobbyWait = Math.max(c.lobbyWait, 30); c.v3 = true; } // ahora se esperan 30 s a los demás jugadores
+      return c;
+    }
   } catch {}
   return { ...DEFAULT_CONFIG };
 }
@@ -133,7 +137,8 @@ const FALLBACK = {
   short_grass: ["tallgrass", { tall_grass_type: "tall" }],
   fern: ["tallgrass", { tall_grass_type: "fern" }],
   oak_planks: ["planks", { wood_type: "oak" }], spruce_planks: ["planks", { wood_type: "spruce" }],
-  dark_oak_planks: ["planks", { wood_type: "dark_oak" }],
+  dark_oak_planks: ["planks", { wood_type: "dark_oak" }], jungle_planks: ["planks", { wood_type: "jungle" }],
+  coarse_dirt: ["dirt", { dirt_type: "coarse" }],
   oak_log: ["log", { old_log_type: "oak" }], spruce_log: ["log", { old_log_type: "spruce" }],
   birch_log: ["log", { old_log_type: "birch" }], jungle_log: ["log", { old_log_type: "jungle" }],
   dark_oak_log: ["log2", { new_log_type: "dark_oak" }],
@@ -217,7 +222,7 @@ function buildLobbyTasks() {
   const r = LOBBY_RADIUS;
   for (let y = LOBBY.y - 20; y <= LOBBY.y + 34; y += 2)
     clear.push(() => cmd(d, `fill ${LOBBY.x - r} ${y} ${LOBBY.z - r} ${LOBBY.x + r} ${y + 1} ${LOBBY.z + r} air`));
-  const build = buildOrder(blocks).map((b) => () => setBlock(labs(b), b.id, b.states));
+  const build = buildOrder(blocks.filter((b) => b.id !== "portal")).map((b) => () => setBlock(labs(b), b.id, b.states));
   return { clear, build };
 }
 
@@ -247,20 +252,42 @@ function trySetup(retry = false) {
   }, (i) => { S.loading && (S.loading.done = clear.length + i); }), (i) => { S.loading && (S.loading.done = i); });
 }
 
-// Revisa que el portal esté completo y vuelve a poner los bloques que falten
-function ensurePortal() {
+// Portal: se enciende con fuego, como lo haría un jugador con un mechero, y el propio juego
+// lo crea completo y bien orientado. (Colocar los bloques de portal uno por uno no sirve:
+// cada bloque nuevo ve aire al lado y se rompe; solo sobrevivía el de una esquina.)
+let portalBusy = false;
+function portalComplete() {
   const P = Z().portal;
+  for (let x = P.x1; x <= P.x2; x++) for (let y = P.y1; y <= P.y2; y++) {
+    try { if (overworld().getBlock(labs({ x, y, z: P.z }))?.typeId !== "minecraft:portal") return false; } catch { return false; }
+  }
+  return true;
+}
+function ensurePortal() {
+  if (portalBusy) return;
+  const P = Z().portal, d = overworld();
+  // Marco: solo obsidiana
   for (let x = P.x1 - 1; x <= P.x2 + 1; x++) for (let y = P.y1 - 1; y <= P.y2 + 1; y++) {
     const frame = x < P.x1 || x > P.x2 || y < P.y1 || y > P.y2;
     if (!frame) continue;
-    try { const pos = labs({ x, y, z: P.z }); if (overworld().getBlock(pos)?.typeId !== "minecraft:obsidian") setBlock(pos, "obsidian"); } catch {}
+    try { const pos = labs({ x, y, z: P.z }); if (d.getBlock(pos)?.typeId !== "minecraft:obsidian") setBlock(pos, "obsidian"); } catch {}
   }
-  for (let x = P.x1; x <= P.x2; x++) for (let y = P.y1; y <= P.y2; y++) {
-    try {
-      const pos = labs({ x, y, z: P.z });
-      if (overworld().getBlock(pos)?.typeId !== "minecraft:portal") setBlock(pos, "portal", { portal_axis: "x" });
-    } catch {}
-  }
+  if (portalComplete()) return;
+  portalBusy = true;
+  const a = labs({ x: P.x1, y: P.y1, z: P.z }), b = labs({ x: P.x2, y: P.y2, z: P.z });
+  const fill = (what) => cmd(d, `fill ${a.x} ${a.y} ${a.z} ${b.x} ${b.y} ${b.z} ${what}`);
+  // 1) vaciar el interior y encender con fuego
+  fill("air");
+  const f = labs({ x: Math.floor((P.x1 + P.x2) / 2), y: P.y1, z: P.z });
+  cmd(d, `setblock ${f.x} ${f.y} ${f.z} fire`);
+  system.runTimeout(() => {
+    // 2) si el fuego no lo encendió, llenar todo el portal de una vez (en un solo comando no se rompe)
+    if (!portalComplete()) { fill("air"); fill('portal ["portal_axis"="x"]'); }
+    system.runTimeout(() => {
+      if (!portalComplete()) { fill("air"); fill('portal ["portal_axis"="z"]'); }
+      system.runTimeout(() => { portalBusy = false; }, 5);
+    }, 5);
+  }, 5);
 }
 
 // --- Pantalla de carga --------------------------------------------------------
@@ -852,7 +879,7 @@ system.runInterval(() => {
     const solo = soloTest();
     if (config.autoStart && (q.length >= config.minPlayers || solo)) {
       if (S.lobbyTimer < 0) {
-        S.lobbyTimer = solo ? Math.min(config.lobbyWait, 10) : config.lobbyWait;
+        S.lobbyTimer = solo ? Math.max(config.lobbyWait, 30) : config.lobbyWait;
         if (solo) each(q, (p) => p.sendMessage("§eEstás solo en el mundo: §fla partida empieza contigo en §bmodo prueba§f. Termina al morir o con la muerte súbita."));
       }
       S.lobbyTimer--;
@@ -1101,7 +1128,7 @@ function configMenu(p) {
     .toggle("Inicio automático", config.autoStart)
     .toggle("Kits activados", config.kits)
     .slider("Jugadores mínimos", 2, 8, 1, config.minPlayers)
-    .slider("Espera antes de empezar (seg)", 10, 60, 5, config.lobbyWait)
+    .slider("Espera antes de empezar (seg)", 10, 90, 5, config.lobbyWait)
     .slider("Recarga de cofres (seg)", 60, 300, 30, config.refill)
     .slider("Tiempo hasta muerte súbita (min)", 5, 20, 1, config.timeLimit);
   THEMES.forEach((t, i) => f.toggle(`Mapa ${i + 1}: ${t.name}`, config.enabledMaps[i] !== false));

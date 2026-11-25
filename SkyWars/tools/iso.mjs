@@ -33,6 +33,7 @@ export const COLORS = {
   yellow_concrete: "#f0b010", orange_concrete: "#e06000", magenta_concrete: "#a830a0", pink_concrete: "#d06890", cyan_concrete: "#157788",
   quartz_block: "#ece6df", quartz_pillar: "#ece6df", smooth_quartz: "#efe9e2", polished_andesite: "#8a8e8e", smooth_stone: "#a0a0a0",
   grass_path: "#a08a50", polished_blackstone_bricks: "#30282e", portal: "#7a20e0", redstone_lamp: "#e0a060", slime: "#70c060",
+  coarse_dirt: "#7a5638", crafting_table: "#9a6a3a", furnace: "#6a6a6a", enchanting_table: "#5a2030", bookshelf: "#8a6030", jungle_planks: "#b08050",
   azalea_leaves: "#5a8a30", flowering_azalea_leaves: "#6a9a40",
 };
 const SMALL = ["poppy", "dandelion", "deadbush", "crimson_roots", "crimson_fungus", "brown_mushroom", "red_mushroom", "fern", "vine", "short_grass",

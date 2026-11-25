@@ -28,6 +28,7 @@ const NORMAL = {
     ["minecraft:bow", 4, 1, 1, [["power", 1]]], ["minecraft:arrow", 5, 8, 24], ["minecraft:golden_apple", 4, 1, 3],
     ["minecraft:ender_pearl", 4, 1, 2], ["minecraft:tnt", 3, 2, 5], ["minecraft:flint_and_steel", 2, 1, 1],
     ["minecraft:diamond_pickaxe", 2, 1, 1], ["minecraft:cobblestone", 4, 16, 48], ["minecraft:experience_bottle", 3, 4, 12],
+    ["minecraft:lapis_lazuli", 3, 3, 9], // para la mesa de encantamientos del salón
   ],
 };
 
@@ -51,6 +52,7 @@ const EXTREME = {
     ["minecraft:netherite_helmet", 1, 1, 1], ["minecraft:bow", 4, 1, 1, [["power", 3], ["punch", 1]]], ["minecraft:arrow", 5, 24, 48],
     ["minecraft:enchanted_golden_apple", 1, 1, 1], ["minecraft:golden_apple", 4, 2, 5], ["minecraft:ender_pearl", 4, 2, 4],
     ["minecraft:tnt", 3, 4, 10], ["minecraft:totem_of_undying", 1, 1, 1], ["minecraft:trident", 1, 1, 1, [["loyalty", 1]]],
+    ["minecraft:lapis_lazuli", 3, 6, 16], ["minecraft:experience_bottle", 3, 8, 20],
   ],
 };
 
@@ -67,7 +69,7 @@ const GUARANTEED = {
   extreme: [["minecraft:oak_planks", 48], ["minecraft:iron_sword", 1]],
 };
 
-const ITEMS_PER_CHEST = { spawn: [4, 6], mid: [4, 6], center: [5, 8] };
+const ITEMS_PER_CHEST = { spawn: [3, 5], mid: [4, 6], center: [4, 7] }; // 3 cofres por isla de aparición
 
 function pick(pool) {
   const total = pool.reduce((s, e) => s + e[1], 0);

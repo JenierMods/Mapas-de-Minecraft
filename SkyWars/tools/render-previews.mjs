@@ -35,12 +35,13 @@ const scenes = [];
 THEMES.forEach((t, i) => {
   const a = generateArena(i);
   const secret = a.chests.filter((c) => c.secret).length;
+  const spawnChests = a.chests.filter((c) => c.kind === "spawn").length;
   scenes.push({
     file: path.join(out, `mapa-${String(i + 1).padStart(2, "0")}-${t.id}.png`),
     w: 1200, h: 760, scale: 13.5, center: [0, 2, 0], offset: [0, 30], sky: SKIES[t.id], logo,
     blocks: withCages(a),
     title: `Mapa ${i + 1} · ${t.name}`,
-    subtitle: `${t.desc} · ${a.chests.length} cofres (${secret} secretos en túneles)`,
+    subtitle: `${t.desc} · ${a.chests.length} cofres: ${spawnChests} en las islas (arriba, casita y cueva) y ${secret} escondidos`,
   });
 });
 
@@ -61,6 +62,18 @@ scenes.push(
   { file: path.join(out, "lobby-04-laberinto-y-arco.png"), w: 1200, h: 760, scale: 15, center: [-12, 2, 14], sky: lsky, logo, blocks: lobby.blocks.filter((b) => (b.z > 12 || b.x < -10) && b.z < 40 && b.x < 30),
     title: "Laberinto, tiro con arco y trampolines", subtitle: "Encuentra el bloque de oro del laberinto o prueba tu puntería con las dianas" },
 );
+
+// Detalles: isla de aparición cortada a la mitad y salón central sin techo (mapa 1)
+{
+  const a = generateArena(0), s0 = a.spawns[2]; // isla que mira hacia el jugador
+  const near = a.blocks.filter((b) => Math.hypot(b.x - s0.x, b.z - s0.z) < 11);
+  const cut = near.filter((b) => b.x <= s0.x + 1); // corte para ver adentro
+  scenes.push({ file: path.join(out, "detalle-isla-de-aparicion.png"), w: 1200, h: 760, scale: 34, center: [s0.x - 1, s0.y - 4, s0.z], sky: SKIES.pradera, logo, blocks: cut,
+    title: "Isla de aparición (corte)", subtitle: "3 cofres: uno arriba, otro dentro de la casita y otro en la cueva con mesa de trabajo, horno y escalera" });
+  const hall = a.blocks.filter((b) => Math.hypot(b.x, b.z) < 15 && b.y <= a.center.y + 4);
+  scenes.push({ file: path.join(out, "detalle-salon-central.png"), w: 1200, h: 760, scale: 30, center: [0, 0, 0], sky: SKIES.pradera, logo, blocks: hall,
+    title: "Salón central (sin techo)", subtitle: "8 cofres ordenados, mesa de encantamientos con librerías y 4 puertas; debajo, un sótano secreto" });
+}
 
 // Ícono del mundo (miniatura del menú de Minecraft) y de la plantilla
 scenes.push({ file: path.join(root, "world_icon.jpeg"), type: "jpeg", dpr: 1, w: 800, h: 450, scale: 13, center: [-2, 6, 0], offset: [0, 25], sky: lsky, logo, blocks: L,

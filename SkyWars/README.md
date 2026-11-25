@@ -12,7 +12,7 @@ El lobby es una isla aparte, a 1000 bloques de la arena, así que desde las isla
 
 | Zona | Qué hace |
 |---|---|
-| **Portal (JUGAR)** | Entras al portal y pasas a la **sala de espera** (la cola). La partida empieza sola cuando hay jugadores suficientes. Si ya hay una partida en curso, el portal te lleva a **mirarla como espectador** |
+| **Portal (JUGAR)** | Entras al portal y pasas a la **sala de espera** (la cola). La partida empieza sola **30 segundos** después de que haya jugadores suficientes. Si ya hay una partida en curso, el portal te lleva a **mirarla como espectador** |
 | **Sala de espera** | Muestra cuántos hay en la cola y la cuenta atrás. Para **salir de la cola**, te paras en el bloque verde |
 | **Aldeano de Kits** | Eliges entre 8 kits (Constructor, Guerrero, Arquero, Explorador, Médico, Demoledor, Pescador o sin kit) |
 | **Aldeano de Mapas** | Lista de los 10 mapas con su descripción, y **votación** del siguiente mapa |
@@ -24,7 +24,7 @@ El lobby es una isla aparte, a 1000 bloques de la arena, así que desde las isla
 | **Trampolines** | Bloques de slime con torres para saltar |
 | **Hologramas** | Textos flotantes: créditos, estado de la cola, **ranking de victorias** y **mejores tiempos del parkour** en vivo |
 
-En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos. Sobre la fuente de la plaza está el nombre **SkyWars** con los créditos. Si alguien cae dentro de la fuente, a los **30 segundos** vuelve solo al punto de inicio. El portal se revisa y se repara solo cada 15 segundos.
+En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos. Sobre la fuente de la plaza está el nombre **SkyWars** con los créditos. Si alguien cae dentro de la fuente, a los **30 segundos** vuelve solo al punto de inicio. El portal se **enciende con fuego**, como lo haría un jugador, y se revisa y repara solo cada 15 segundos.
 
 | | |
 |---|---|
@@ -35,22 +35,36 @@ En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocar
 
 ![Todos los mapas](previews/todos-los-mapas.png)
 
-Cada mapa tiene su propia distribución (círculo, cuadrado o escalonada, con alturas distintas) y sus propias estructuras:
+Cada mapa tiene su propia **forma de isla** (cono, meseta, hongo, esfera o escalonada), su propia distribución y su propio estilo de construcción.
 
-| # | Mapa | Isla central | Islas intermedias | Islas de aparición |
-|---|---|---|---|---|
-| 1 | Pradera | Pozo techado con faroles | Molinos | Casitas de madera |
-| 2 | Desierto | Pirámide con entradas | Obeliscos | Pozos |
-| 3 | Glaciar | Picos de hielo | Torres de hielo | Iglús |
-| 4 | Infierno | Torre de ladrillo del Nether | Puentes de fortaleza | Arcos en ruinas |
-| 5 | El Fin | Torre de obsidiana elevada | Pilares con barrotes | Torres de purpur |
-| 6 | Champiñones | Champiñón gigante | Pares de champiñones (6 islas) | Casitas-hongo |
-| 7 | Jungla | Templo en ruinas | Árboles gigantes | Ruinas con musgo |
-| 8 | Océano | Monumento (atolón) | Barcos naufragados | Ruinas de prismarina |
-| 9 | Cerezos | Pagoda de 3 pisos | Pabellones | Portales torii |
-| 10 | Geoda | Geoda gigante con entradas | Medias geodas | Cristales de amatista |
+**Cada isla de aparición tiene 3 cofres:**
+1. **Arriba**, junto a la jaula. Trae lo básico asegurado: bloques y una espada.
+2. **Dentro de una casita** con puerta, ventanas, farol y techo según el tema.
+3. **En una cueva** debajo de la isla, a la que se baja por una escalera. Tiene mesa de trabajo, horno, farol y luz en el techo.
 
-Además, todos los mapas tienen **túneles** que atraviesan la isla central, con luces y **cofres secretos** de botín especial, puntas que cuelgan bajo las islas, rocas flotantes y decoración temática.
+**La isla central tiene un salón** con 4 puertas, **8 cofres ordenados** contra las paredes y una **mesa de encantamientos** con librerías (en los cofres del centro hay lapislázuli).
+
+**Cofres escondidos con mejor botín:**
+- Un **sótano secreto** bajo el salón. Hay que picar el bloque marcado del piso.
+- **Túneles** que atraviesan la isla central.
+- Un cofre **enterrado** en cada isla intermedia.
+
+| Isla de aparición (corte) | Salón central (sin techo) |
+|---|---|
+| ![Isla](previews/detalle-isla-de-aparicion.png) | ![Salón](previews/detalle-salon-central.png) |
+
+| # | Mapa | Forma | Casitas | Salón central | Extra |
+|---|---|---|---|---|---|
+| 1 | Pradera | Cono | Cabañas de madera | Mansión con techo de pirámide | Molinos |
+| 2 | Desierto | Meseta | Casas de adobe | Salón-pirámide | Obeliscos |
+| 3 | Glaciar | Cono con picos de hielo | Iglús | Palacio con cúpula | Torres de hielo |
+| 4 | Infierno | Escalonada con basalto | Chozas de ladrillo del Nether | Fortaleza con almenas | **Puentes** al centro |
+| 5 | El Fin | Esfera | Torres de purpur | Castillo elevado | Pilares de obsidiana |
+| 6 | Champiñones | Hongo | Casitas-hongo | Gran salón champiñón | 6 islas intermedias |
+| 7 | Jungla | Escalonada | Chozas con techo de hojas | Templo | **Puentes** y árboles gigantes |
+| 8 | Océano | Meseta | Casas de prismarina | Monumento con cúpula | Barcos naufragados |
+| 9 | Cerezos | Escalonada | Casas de té | Pagoda de 2 pisos | **Puentes** y pabellones |
+| 10 | Geoda | Esfera | Casas de calcita | Salón de amatista | Medias geodas |
 
 ## Funciones de la partida
 
@@ -88,7 +102,7 @@ Si nadie tiene la etiqueta `sw_admin`, cualquiera puede usar el aldeano de Ajust
 /tag TuNombre add sw_admin
 ```
 
-**Probar estando solo:** si eres la única persona en el mundo, entra al portal y la partida empieza contigo en **modo prueba** a los 10 segundos. La prueba termina cuando mueres o con la muerte súbita. Con más gente en el mundo, un admin también puede usar *Ajustes → Forzar inicio* con una sola persona en la cola.
+**Probar estando solo:** si eres la única persona en el mundo, entra al portal y la partida empieza contigo en **modo prueba** a los 30 segundos (por si entra alguien más). La prueba termina cuando mueres o con la muerte súbita. Con más gente en el mundo, un admin también puede usar *Ajustes → Forzar inicio* con una sola persona en la cola.
 
 ## Estructura
 
