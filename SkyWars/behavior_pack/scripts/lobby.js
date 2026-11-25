@@ -7,7 +7,7 @@ import { LOGO } from "./logo.js";
 
 export const LOBBY = { x: 1000, y: 100, z: 0 };
 export const LOBBY_RADIUS = 58;     // para el área de carga (tickingarea)
-export const LOBBY_VERSION = 4;     // subir este número obliga a reconstruir el lobby
+export const LOBBY_VERSION = 5;     // subir este número obliga a reconstruir el lobby
 
 const HANG = { hanging: true };
 
@@ -140,7 +140,8 @@ export function generateLobby() {
     const ang = (a / 8) * Math.PI * 2 + Math.PI / 8;
     lamp(b, Math.round(Math.cos(ang) * 9.3), 0, Math.round(Math.sin(ang) * 9.3), 3, "dark_oak_fence", "lantern");
   }
-  ZONES.holograms.push({ id: "credits", x: 0.5, y: 7.2, z: 0.5, text: "§l§bSkyWars Rotativo§r\n§fCreado por §a§lJenierMods OFC" });
+  ZONES.holograms.push({ id: "credits", x: 0.5, y: 7.2, z: 0.5, text: "§l§bSkyWars JNR OFC§r\n§fCreado por §a§lJenierMods OFC" });
+  ZONES.fountain = { x: 0.5, z: 0.5, r: 3 };
   ZONES.holograms.push({ id: "welcome", x: 0.5, y: 3.2, z: 10.5, text: "§e¡Bienvenido!\n§7Entra al §5portal§7 para jugar\n§7Toca a los aldeanos para kits, mapas y más" });
 
   // --- Portal para entrar a la partida (norte) ---
@@ -149,7 +150,7 @@ export function generateLobby() {
   const P = ZONES.portal;
   for (let x = P.x1 - 1; x <= P.x2 + 1; x++) for (let y = 0; y <= P.y2 + 1; y++) {
     const frame = x === P.x1 - 1 || x === P.x2 + 1 || y === 0 || y === P.y2 + 1;
-    b.set(x, y, P.z, frame ? ((x + y) % 3 === 0 ? "crying_obsidian" : "obsidian") : "portal", frame ? undefined : { portal_axis: "x" });
+    b.set(x, y, P.z, frame ? "obsidian" : "portal", frame ? undefined : { portal_axis: "x" });
   }
   for (const x of [-5, 5]) {
     for (let h = 1; h <= 7; h++) b.set(x, h, P.z, "purpur_pillar");
@@ -224,7 +225,6 @@ export function generateLobby() {
   for (let y = baseY - 1; y <= baseY + size; y++) for (const z of [-Math.floor(size / 2) - 1, size - Math.floor(size / 2)]) b.set(MX, y, z, "smooth_quartz");
   for (let z = -Math.floor(size / 2) - 1; z <= size - Math.floor(size / 2); z++) { b.set(MX, baseY - 1, z, "smooth_quartz"); b.set(MX, baseY + size, z, "smooth_quartz"); }
   for (let y = 0; y <= baseY + size; y++) for (let z = -Math.floor(size / 2) - 1; z <= size - Math.floor(size / 2); z++) b.setIfAir(MX + 1, y, z, "white_concrete");
-  ZONES.holograms.push({ id: "mural", x: MX - 1 + 0.5, y: baseY + size + 2.5, z: 0.5, text: "§l§aJenierMods OFC" });
 
   // --- Tiro con arco (oeste) ---
   const A = ZONES.archery;
@@ -253,7 +253,7 @@ export function generateLobby() {
   const goalR = 1 + 2 * Math.floor(cells / 2), goalC = goalR; // celda central
   const gx = MXo + goalC, gz = MZ + goalR;
   b.set(gx, 0, gz, "gold_block");
-  b.set(gx, 4, gz, "lantern");
+  b.set(gx, 4, gz, "sea_lantern"); // marca flotante de la meta (un farol sin soporte se caería)
   for (let h = 1; h <= 3; h++) b.del(gx, h, gz);
   ZONES.maze = { entry: { x: MXo + entryC, z: MZ }, goal: { x: gx, z: gz } };
   ZONES.holograms.push({ id: "maze", x: MXo + entryC + 0.5, y: 4.5, z: MZ - 0.5, text: "§l§2LABERINTO§r\n§7Encuentra el bloque de oro" });

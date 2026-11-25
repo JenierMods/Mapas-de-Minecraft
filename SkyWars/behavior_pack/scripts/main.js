@@ -48,6 +48,7 @@ const S = {
   archery: new Map(),    // id -> aciertos de la sesión
   sneak: new Map(),      // id -> ticks agachado (espectadores / parkour)
   lookUp: new Map(),     // id -> ticks mirando hacia arriba (espectadores)
+  fountain: new Map(),   // id -> ticks dentro de la fuente
   forced: false,
   menuCooldown: new Map(),
   holo: new Map(),       // id holograma -> entidad
@@ -201,10 +202,13 @@ function lobbyLoaded() {
   return true;
 }
 
+// Bloques que necesitan que su soporte ya exista (si no, se rompen y sueltan el objeto):
+// faroles colgantes, lianas y el portal (necesita el marco completo).
+const attached = (b) => b.states?.hanging || b.id === "vine" || b.id === "portal";
+function buildOrder(blocks) { return blocks.filter((b) => !attached(b)).concat(blocks.filter(attached)); }
+
 function buildLobbyTasks() {
   const { blocks } = generateLobby();
-  // Los bloques de portal van al final, cuando el marco ya existe (si no, se rompen)
-  const normal = blocks.filter((b) => b.id !== "portal"), portal = blocks.filter((b) => b.id === "portal");
   const d = overworld();
   const clear = [() => cmd(d, "fill -8 230 -8 8 233 8 air")]; // quita el lobby viejo (estaba encima de la arena)
   // Limpia el área del lobby antes de construir, para que no queden restos de versiones anteriores.
@@ -212,7 +216,7 @@ function buildLobbyTasks() {
   const r = LOBBY_RADIUS;
   for (let y = LOBBY.y - 20; y <= LOBBY.y + 34; y += 2)
     clear.push(() => cmd(d, `fill ${LOBBY.x - r} ${y} ${LOBBY.z - r} ${LOBBY.x + r} ${y + 1} ${LOBBY.z + r} air`));
-  const build = normal.concat(portal).map((b) => () => setBlock(labs(b), b.id, b.states));
+  const build = buildOrder(blocks).map((b) => () => setBlock(labs(b), b.id, b.states));
   return { clear, build };
 }
 
@@ -224,6 +228,7 @@ function trySetup(retry = false) {
   if (!lobbyLoaded()) { system.runTimeout(() => trySetup(true), 40); return; }
   const finish = () => {
     S.ready = true;
+    ensurePortal();
     spawnNpcs();
     spawnHolograms();
     each(players(), sendToLobby);
@@ -237,6 +242,22 @@ function trySetup(retry = false) {
     finish();
     say("¡Lobby listo! " + CREDITS);
   }));
+}
+
+// Revisa que el portal esté completo y vuelve a poner los bloques que falten
+function ensurePortal() {
+  const P = Z().portal;
+  for (let x = P.x1 - 1; x <= P.x2 + 1; x++) for (let y = P.y1 - 1; y <= P.y2 + 1; y++) {
+    const frame = x < P.x1 || x > P.x2 || y < P.y1 || y > P.y2;
+    if (!frame) continue;
+    try { const pos = labs({ x, y, z: P.z }); if (overworld().getBlock(pos)?.typeId !== "minecraft:obsidian") setBlock(pos, "obsidian"); } catch {}
+  }
+  for (let x = P.x1; x <= P.x2; x++) for (let y = P.y1; y <= P.y2; y++) {
+    try {
+      const pos = labs({ x, y, z: P.z });
+      if (overworld().getBlock(pos)?.typeId !== "minecraft:portal") setBlock(pos, "portal", { portal_axis: "x" });
+    } catch {}
+  }
 }
 
 function floatAboveLobby(p) {
@@ -430,7 +451,7 @@ function clearArenaTasks() {
   tasks.push(() => cmd(d, `kill @e[type=!player,${box}]`));
   return tasks;
 }
-function buildArenaTasks(arena) { return arena.blocks.map((b) => () => setBlock(abs(b), b.id, b.states)); }
+function buildArenaTasks(arena) { return buildOrder(arena.blocks).map((b) => () => setBlock(abs(b), b.id, b.states)); }
 function cageBlocks(spawn, team) {
   const out = [];
   const fy = spawn.y + 2;
@@ -444,11 +465,14 @@ function cageBlocks(spawn, team) {
 // ---------------------------------------------------------------------------
 // Flujo de la partida
 // ---------------------------------------------------------------------------
+// Si solo hay una persona en el mundo, la partida empieza con ella (modo prueba)
+const soloTest = () => players().length === 1 && queued().length === 1;
 function startGame(by) {
   if (!S.ready || S.phase !== "lobby") return;
   const q = queued();
-  const min = by ? 1 : config.minPlayers; // un admin puede forzar el inicio (prueba con 1 jugador)
-  S.forced = !!by;
+  const solo = soloTest();
+  const min = by || solo ? 1 : config.minPlayers; // un admin puede forzar el inicio (prueba con 1 jugador)
+  S.forced = !!by || solo;
   if (q.length < min) { by?.sendMessage(`§cHace falta al menos ${min} jugador(es) en la cola. Entra al portal.`); return; }
   const index = chooseMap();
   world.setDynamicProperty("sw:last", index);
@@ -573,7 +597,7 @@ function endGame(winners, team) {
   let text;
   if (team) text = team === "red" ? "§c¡Gana el equipo ROJO!" : "§9¡Gana el equipo AZUL!";
   else if (winners.length === 1) text = `§a¡${winners[0].name} gana!`;
-  else text = "§7Empate";
+  else text = S.startCount === 1 ? "§eFin de la partida de prueba" : "§7Empate";
   each(players().filter(inGame), (p) => title(p, text, `Mapa: ${S.arena?.theme.name ?? ""}`, 80));
   say(`${text} §7(${S.arena?.theme.name ?? ""})`);
   each(winners, (w) => {
@@ -636,6 +660,17 @@ function lobbyTick(p) {
     if (Math.abs(bx - e.x) <= 1 && Math.abs(bz - e.z) <= 1 && by <= e.y + 1) leaveQueue(p);
     return;
   }
+
+  // Fuente: quien cae al agua vuelve al punto de inicio a los 30 segundos
+  const F = z.fountain;
+  if (F && Math.hypot(r.x - F.x, r.z - F.z) < F.r && r.y < 1.5) {
+    const t = (S.fountain.get(p.id) ?? 0) + 4;
+    S.fountain.set(p.id, t);
+    const left = Math.ceil((600 - t) / 20);
+    actionbar(p, `§bSaliendo de la fuente en §f${left}s`);
+    if (t >= 600) { S.fountain.delete(p.id); sendToLobby(p); p.sendMessage("§7¡Fuera de la fuente!"); }
+    return;
+  } else if (S.fountain.has(p.id)) S.fountain.delete(p.id);
 
   // Portal
   const P = z.portal;
@@ -766,20 +801,26 @@ let holoTimer = 0, npcTimer = 0, arrowTimer = 0;
 system.runInterval(() => {
   if (!S.ready) return;
   if (++holoTimer >= 3) { holoTimer = 0; updateHolograms(); }
-  if (++npcTimer >= 15) { npcTimer = 0; spawnNpcs(); ensureHolograms(); }
+  if (++npcTimer >= 15) { npcTimer = 0; spawnNpcs(); ensureHolograms(); ensurePortal(); }
   if (++arrowTimer >= 5) {
     arrowTimer = 0;
     const r = LOBBY_RADIUS;
-    cmd(overworld(), `kill @e[type=arrow,x=${LOBBY.x - r},y=${LOBBY.y - 40},z=${LOBBY.z - r},dx=${2 * r},dy=80,dz=${2 * r}]`);
+    const box = `x=${LOBBY.x - r},y=${LOBBY.y - 40},z=${LOBBY.z - r},dx=${2 * r},dy=80,dz=${2 * r}`;
+    cmd(overworld(), `kill @e[type=arrow,${box}]`);
+    cmd(overworld(), `kill @e[type=item,${box}]`);
   }
 
   if (S.phase === "lobby") {
     const q = queued();
-    if (config.autoStart && q.length >= config.minPlayers) {
-      if (S.lobbyTimer < 0) S.lobbyTimer = config.lobbyWait;
+    const solo = soloTest();
+    if (config.autoStart && (q.length >= config.minPlayers || solo)) {
+      if (S.lobbyTimer < 0) {
+        S.lobbyTimer = solo ? Math.min(config.lobbyWait, 10) : config.lobbyWait;
+        if (solo) each(q, (p) => p.sendMessage("§eEstás solo en el mundo: §fla partida empieza contigo en §bmodo prueba§f. Termina al morir o con la muerte súbita."));
+      }
       S.lobbyTimer--;
       each(q, (p) => {
-        actionbar(p, `§eLa partida empieza en §f${S.lobbyTimer}s §7· ${q.length}/8 jugadores`);
+        actionbar(p, `§eLa partida empieza en §f${S.lobbyTimer}s §7· ${solo ? "§bmodo prueba" : `${q.length}/8 jugadores`}`);
         if (S.lobbyTimer <= 5 && S.lobbyTimer > 0) sound(p, "random.click");
       });
       if (S.lobbyTimer <= 0) startGame();

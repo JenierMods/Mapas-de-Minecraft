@@ -28,7 +28,14 @@ console.log(`parkour: ${pk.jumps.length} saltos, ${pk.checkpoints.length} puntos
 // Portal
 const P = zones.portal;
 for (let x = P.x1; x <= P.x2; x++) for (let y = P.y1; y <= P.y2; y++) if (at(x, y, P.z)?.id !== "portal") err(`portal incompleto en ${x},${y}`);
-for (let x = P.x1 - 1; x <= P.x2 + 1; x++) for (const y of [P.y1 - 1, P.y2 + 1]) if (!["obsidian", "crying_obsidian"].includes(at(x, y, P.z)?.id)) err("marco del portal incompleto");
+for (let x = P.x1 - 1; x <= P.x2 + 1; x++) for (let y = P.y1 - 1; y <= P.y2 + 1; y++) {
+  const frame = x < P.x1 || x > P.x2 || y < P.y1 || y > P.y2;
+  if (frame && at(x, y, P.z)?.id !== "obsidian") err(`marco del portal con ${at(x, y, P.z)?.id ?? "aire"} en ${x},${y} (solo vale obsidiana)`);
+}
+// Faroles colgantes con bloque encima, faroles normales con bloque debajo
+for (const b of blocks) if (b.id === "lantern" || b.id === "soul_lantern") {
+  if (b.states?.hanging ? !at(b.x, b.y + 1, b.z) : !at(b.x, b.y - 1, b.z)) err(`farol sin soporte en ${b.x},${b.y},${b.z}`);
+}
 
 // Aldeanos: espacio libre y cerco
 for (const n of zones.npcs) {

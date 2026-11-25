@@ -24,7 +24,7 @@ El lobby es una isla aparte, a 1000 bloques de la arena, así que desde las isla
 | **Trampolines** | Bloques de slime con torres para saltar |
 | **Hologramas** | Textos flotantes: créditos, estado de la cola, **ranking de victorias** y **mejores tiempos del parkour** en vivo |
 
-En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos.
+En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos. Sobre la fuente de la plaza está el nombre **SkyWars JNR OFC** con los créditos. Si alguien cae dentro de la fuente, a los **30 segundos** vuelve solo al punto de inicio. El portal se revisa y se repara solo cada 15 segundos.
 
 | | |
 |---|---|
@@ -88,7 +88,7 @@ Si nadie tiene la etiqueta `sw_admin`, cualquiera puede usar el aldeano de Ajust
 /tag TuNombre add sw_admin
 ```
 
-Un admin puede **forzar el inicio** con una sola persona en la cola para probar los mapas. En ese caso la partida no termina sola.
+**Probar estando solo:** si eres la única persona en el mundo, entra al portal y la partida empieza contigo en **modo prueba** a los 10 segundos. La prueba termina cuando mueres o con la muerte súbita. Con más gente en el mundo, un admin también puede usar *Ajustes → Forzar inicio* con una sola persona en la cola.
 
 ## Estructura
 
