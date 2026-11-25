@@ -96,11 +96,12 @@ function inv(p) { return p.getComponent("minecraft:inventory").container; }
 // ---------------------------------------------------------------------------
 // Tareas repartidas en varios ticks (sin congelar el juego)
 // ---------------------------------------------------------------------------
-function runTasks(tasks, perTick, onDone) {
+function runTasks(tasks, perTick, onDone, onProgress) {
   let i = 0;
   const id = system.runInterval(() => {
     const end = Math.min(i + perTick, tasks.length);
     for (; i < end; i++) { try { tasks[i](); } catch {} }
+    try { onProgress?.(i, tasks.length); } catch {}
     if (i >= tasks.length) {
       system.clearRun(id);
       try { onDone?.(); } catch (e) { console.warn(`[SkyWars] ${e}`); }
@@ -228,20 +229,22 @@ function trySetup(retry = false) {
   if (!lobbyLoaded()) { system.runTimeout(() => trySetup(true), 40); return; }
   const finish = () => {
     S.ready = true;
+    S.loading = null;
     ensurePortal();
     spawnNpcs();
     spawnHolograms();
-    each(players(), sendToLobby);
+    each(players(), endLoading);
   };
   if (world.getDynamicProperty("sw:lobbyVersion") === LOBBY_VERSION) { finish(); return; }
-  // Mientras se construye, todos esperan flotando encima del lobby
-  each(players(), floatAboveLobby);
+  // Mientras se construye, todos ven la pantalla de carga (no se ve nada construyéndose)
+  each(players(), startLoading);
   const { clear, build } = buildLobbyTasks();
-  runTasks(clear, 1, () => runTasks(build, 400, () => {
+  const total = clear.length + build.length;
+  S.loading = { done: 0, total };
+  runTasks(clear, 1, () => runTasks(build, 1000, () => {
     world.setDynamicProperty("sw:lobbyVersion", LOBBY_VERSION);
     finish();
-    say("¡Lobby listo! " + CREDITS);
-  }));
+  }, (i) => { S.loading && (S.loading.done = clear.length + i); }), (i) => { S.loading && (S.loading.done = i); });
 }
 
 // Revisa que el portal esté completo y vuelve a poner los bloques que falten
@@ -260,14 +263,42 @@ function ensurePortal() {
   }
 }
 
-function floatAboveLobby(p) {
-  clearTags(p);
-  try { p.teleport(labs({ x: 0.5, y: 45, z: 8.5 }), { dimension: overworld() }); } catch {}
-  cmd(p, "gamemode adventure @s");
-  cmd(p, "effect @s slow_falling 120 0 true");
-  cmd(p, "effect @s resistance 120 255 true");
-  actionbar(p, "§bConstruyendo el lobby...");
+// --- Pantalla de carga --------------------------------------------------------
+// Pantalla negra con el nombre y el porcentaje; el jugador queda quieto en el aire
+// (modo espectador, sin poder moverse) hasta que todo está listo.
+const HOVER = { x: 0.5, y: 45, z: 8.5 };
+function loadingScreen(p) {
+  cmd(p, "camera @s fade time 0 2 0.5 color 0 0 0");
+  const pct = S.loading ? Math.floor((100 * S.loading.done) / Math.max(1, S.loading.total)) : 0;
+  title(p, "§l§bSkyWars JNR OFC", `§7Cargando el mundo... §f${pct}%`, 40);
+  actionbar(p, CREDITS);
 }
+function startLoading(p) {
+  cmd(overworld(), "gamerule sendcommandfeedback false"); // sin mensajes de "tu modo de juego cambió"
+  clearTags(p);
+  cmd(p, "camera @s fade time 0 2 0.5 color 0 0 0");
+  cmd(p, "gamemode spectator @s");
+  cmd(p, "inputpermission set @s movement disabled");
+  cmd(p, "effect @s resistance 120 255 true");
+  try { p.teleport(labs(HOVER), { dimension: overworld() }); } catch {}
+  loadingScreen(p);
+}
+function endLoading(p) {
+  cmd(p, "inputpermission set @s movement enabled");
+  sendToLobby(p);
+  // Sale de la pantalla negra con un fundido suave, ya con todo construido
+  cmd(p, "camera @s fade time 0 0.4 1.2 color 0 0 0");
+  title(p, "§l§bSkyWars JNR OFC", CREDITS, 70);
+}
+// Mientras carga: mantener la pantalla negra y al jugador quieto
+system.runInterval(() => {
+  if (S.ready) return;
+  each(players(), (p) => {
+    loadingScreen(p);
+    const h = labs(HOVER), l = p.location;
+    if (Math.abs(l.x - h.x) + Math.abs(l.y - h.y) + Math.abs(l.z - h.z) > 2) { cmd(p, "gamemode spectator @s"); p.teleport(h, { dimension: overworld() }); }
+  });
+}, 20);
 
 function npcEntities(role) {
   try { return overworld().getEntities({ type: "minecraft:villager_v2", tags: [`${T.npc}_${role}`] }); } catch { return []; }
@@ -903,7 +934,7 @@ world.afterEvents.playerSpawn.subscribe((ev) => {
   if (ev.initialSpawn) {
     system.runTimeout(() => each([p], (pl) => title(pl, "§l§bSkyWars Rotativo", CREDITS, 80)), 40);
     if (!S.ready) {
-      floatAboveLobby(p);
+      startLoading(p);
       system.runTimeout(() => trySetup(), 20);
       return;
     }

@@ -77,7 +77,7 @@ Además, todos los mapas tienen **túneles** que atraviesan la isla central, con
 | `dist/SkyWars-Rotativo.mcaddon` | Solo los packs, para añadirlos a otro mundo (actívalos los dos) |
 
 - Hacen falta los **trucos activados** (para `gamerule`, `tickingarea` y `fill`).
-- La primera vez, el lobby se construye solo en unos segundos.
+- La primera vez, el lobby se construye solo en unos segundos. Mientras tanto se ve una **pantalla de carga** en negro ("SkyWars JNR OFC · Cargando… %"), sin poder moverse. Cuando todo está listo, apareces en la plaza con un fundido. Las veces siguientes la pantalla dura solo un instante.
 - **Sobre la miniatura del mundo:** Minecraft siempre reemplaza la imagen de un mundo por una captura al salir de él, y no hay forma de bloquearlo. La **plantilla** sí conserva su imagen y sus créditos en la lista de plantillas, así que úsala para que la portada siempre se vea bien.
 
 ### Admins
