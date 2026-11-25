@@ -1,20 +1,26 @@
-"""Empaqueta el SkyWars:
-  dist/SkyWars-Rotativo.mcpack   -> solo el behavior pack (para añadir a cualquier mundo)
-  dist/SkyWars-Rotativo.mcworld  -> mundo vacío (void) con el pack ya activado
+"""Empaqueta SkyWars Rotativo (Creado por JenierMods OFC):
+  dist/SkyWars-Rotativo.mcaddon     -> behavior pack + resource pack (para añadir a cualquier mundo)
+  dist/SkyWars-Rotativo.mcworld     -> mundo vacío (void) con los packs ya activados
+  dist/SkyWars-Rotativo.mctemplate  -> plantilla: aparece en "Crear mundo > Plantillas" con su
+                                      ícono y créditos fijos
 
 Uso: python3 tools/build.py
 """
-import io
 import json
 import random
 import struct
+import uuid
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BP = ROOT / "behavior_pack"
+BP, RP = ROOT / "behavior_pack", ROOT / "resource_pack"
 DIST = ROOT / "dist"
 NAME = "SkyWars Rotativo"
+CREDITS = "Creado por JenierMods OFC"
+# UUID fijos de la plantilla (no cambiarlos: así Minecraft la reconoce como la misma al actualizar)
+TEMPLATE_UUID = "5b8f3e2a-6c1d-4f7e-9a2b-3c4d5e6f7a81"
+TEMPLATE_MODULE = "8e7d6c5b-4a39-4281-b7c6-d5e4f3a2b190"
 
 # --- NBT little-endian mínimo ------------------------------------------------
 BYTE, INT, LONG, STRING, LIST, COMPOUND = 1, 3, 4, 8, 9, 10
@@ -57,13 +63,13 @@ def level_dat():
     root = {
         "StorageVersion": (INT, 10),
         "LevelName": (STRING, NAME),
-        "Generator": (INT, 2),               # plano
-        "FlatWorldLayers": (STRING, void_layers),  # ...solo aire = vacío
-        "GameType": (INT, 2),                # aventura (el script cambia el modo en partida)
+        "Generator": (INT, 2),                      # plano
+        "FlatWorldLayers": (STRING, void_layers),   # ...solo aire = vacío
+        "GameType": (INT, 2),                       # aventura (el script cambia el modo en partida)
         "Difficulty": (INT, 2),
         "ForceGameType": (BYTE, 0),
         "commandsEnabled": (BYTE, 1),
-        "SpawnX": (INT, 0), "SpawnY": (INT, 231), "SpawnZ": (INT, 0),
+        "SpawnX": (INT, 1000), "SpawnY": (INT, 101), "SpawnZ": (INT, 8),
         "RandomSeed": (LONG, random.randint(1, 2**31)),
         "Time": (LONG, 6000),
         "lastOpenedWithVersion": (LIST, ver),
@@ -77,7 +83,7 @@ def level_dat():
         "doimmediaterespawn": (BYTE, 1),
         "showcoordinates": (BYTE, 0),
         "mobgriefing": (BYTE, 0),
-        "texturePacksRequired": (BYTE, 0),
+        "texturePacksRequired": (BYTE, 1),
     }
     body = struct.pack("<b", COMPOUND) + _str("") + _payload(COMPOUND, root)
     return struct.pack("<ii", 10, len(body)) + body
@@ -89,22 +95,49 @@ def add_dir(z, src: Path, prefix: str):
             z.write(f, prefix + f.relative_to(src).as_posix())
 
 
+def header(pack):
+    m = json.loads((pack / "manifest.json").read_text(encoding="utf-8"))
+    return m["header"]["uuid"], m["header"]["version"]
+
+
+def world_files(z, with_template_manifest=False):
+    bp_uuid, bp_ver = header(BP)
+    rp_uuid, rp_ver = header(RP)
+    z.writestr("level.dat", level_dat())
+    z.writestr("levelname.txt", NAME)
+    z.writestr("world_behavior_packs.json", json.dumps([{"pack_id": bp_uuid, "version": bp_ver}], indent=2))
+    z.writestr("world_resource_packs.json", json.dumps([{"pack_id": rp_uuid, "version": rp_ver}], indent=2))
+    icon = ROOT / "world_icon.jpeg"
+    if icon.exists():
+        z.write(icon, "world_icon.jpeg")
+    add_dir(z, BP, "behavior_packs/skywars_rotativo_bp/")
+    add_dir(z, RP, "resource_packs/skywars_rotativo_rp/")
+    if with_template_manifest:
+        z.writestr("manifest.json", json.dumps({
+            "format_version": 2,
+            "header": {"name": "pack.name", "description": "pack.description", "uuid": TEMPLATE_UUID,
+                       "version": bp_ver, "lock_template_options": False, "base_game_version": [1, 21, 0]},
+            "modules": [{"type": "world_template", "uuid": TEMPLATE_MODULE, "version": bp_ver}],
+            "metadata": {"authors": ["JenierMods OFC"]},
+        }, indent=2))
+        lang = f"pack.name={NAME}\npack.description={CREDITS} · 10 mapas, lobby con minijuegos\n"
+        for l in ["en_US", "es_ES", "es_MX"]:
+            z.writestr(f"texts/{l}.lang", lang)
+        z.writestr("texts/languages.json", json.dumps(["en_US", "es_ES", "es_MX"]))
+
+
 def main():
     DIST.mkdir(exist_ok=True)
-    manifest = json.loads((BP / "manifest.json").read_text(encoding="utf-8"))
-    uuid, version = manifest["header"]["uuid"], manifest["header"]["version"]
+    for old in DIST.glob("*"):
+        old.unlink()
 
-    with zipfile.ZipFile(DIST / "SkyWars-Rotativo.mcpack", "w", zipfile.ZIP_DEFLATED) as z:
-        add_dir(z, BP, "")
-
+    with zipfile.ZipFile(DIST / "SkyWars-Rotativo.mcaddon", "w", zipfile.ZIP_DEFLATED) as z:
+        add_dir(z, BP, "SkyWars_BP/")
+        add_dir(z, RP, "SkyWars_RP/")
     with zipfile.ZipFile(DIST / "SkyWars-Rotativo.mcworld", "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("level.dat", level_dat())
-        z.writestr("levelname.txt", NAME)
-        z.writestr("world_behavior_packs.json", json.dumps([{"pack_id": uuid, "version": version}], indent=2))
-        icon = ROOT / "world_icon.jpeg"
-        if icon.exists():
-            z.write(icon, "world_icon.jpeg")
-        add_dir(z, BP, "behavior_packs/skywars_rotativo/")
+        world_files(z)
+    with zipfile.ZipFile(DIST / "SkyWars-Rotativo.mctemplate", "w", zipfile.ZIP_DEFLATED) as z:
+        world_files(z, with_template_manifest=True)
 
     for f in sorted(DIST.iterdir()):
         print(f"{f.name}: {f.stat().st_size // 1024} KB")

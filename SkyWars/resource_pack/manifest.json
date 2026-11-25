@@ -1,0 +1,44 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "SkyWars Rotativo · Recursos §7(JenierMods OFC)",
+    "description": "SkyWars con 10 mapas rotativos, lobby con minijuegos y kits.\n§aCreado por JenierMods OFC",
+    "uuid": "2d913b40-5b7b-49af-b167-d11b7d40694f",
+    "version": [
+      2,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      0
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "b161333f-64e9-4932-bec5-2f4f5b0fc7ac",
+      "version": [
+        2,
+        0,
+        0
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "f8a8de97-25d6-492f-a48a-eafb508062b0",
+      "version": [
+        2,
+        0,
+        0
+      ]
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "JenierMods OFC"
+    ]
+  }
+}

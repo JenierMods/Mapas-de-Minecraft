@@ -1,75 +1,125 @@
-# SkyWars Rotativo (Minecraft Bedrock)
+# SkyWars Rotativo · Creado por JenierMods OFC
 
-Minijuego de SkyWars para **Minecraft Bedrock 1.21+** con **10 mapas que rotan entre partidas**. Está inspirado en el clásico *SkyWars (10 Maps)* de Team Cubitos MC: mismas funciones principales, pero con islas, temas y código originales.
+<img src="assets/logo-jeniermods.png" width="96" align="right">
+
+Minijuego de SkyWars para **Minecraft Bedrock 1.21+**: **10 mapas que rotan entre partidas** y un **lobby con minijuegos**. Está inspirado en el clásico *SkyWars (10 Maps)* de Team Cubitos MC, con las mismas funciones principales pero con islas, temas y código originales.
+
+![Lobby](previews/lobby-00-vista-general.png)
+
+## Lobby
+
+El lobby es una isla aparte, a 1000 bloques de la arena, así que desde las islas de juego no se ve.
+
+| Zona | Qué hace |
+|---|---|
+| **Portal (JUGAR)** | Entras al portal y pasas a la **sala de espera** (la cola). La partida empieza sola cuando hay jugadores suficientes. Si ya hay una partida en curso, el portal te lleva a **mirarla como espectador** |
+| **Sala de espera** | Muestra cuántos hay en la cola y la cuenta atrás. Para **salir de la cola**, te paras en el bloque verde |
+| **Aldeano de Kits** | Eliges entre 8 kits (Constructor, Guerrero, Arquero, Explorador, Médico, Demoledor, Pescador o sin kit) |
+| **Aldeano de Mapas** | Lista de los 10 mapas con su descripción, y **votación** del siguiente mapa |
+| **Aldeano de Estadísticas** | Tus victorias, asesinatos, muertes, partidas, K/D, % de victorias y récords, más el **top 10** |
+| **Aldeano de Ajustes** (admin) | Configuración de la partida, forzar inicio, terminar la partida actual y reconstruir el lobby |
+| **Parkour** | 36 saltos en espiral con 4 puntos de control y cronómetro. En la cima aparecen los créditos **Creado por JenierMods OFC** frente al **mural gigante del logo**. Si caes, vuelves al último punto de control. Agáchate para salir |
+| **Tiro con arco** | Al entrar recibes un arco y flechas. Las dianas cuentan aciertos y guardan tu mejor marca |
+| **Laberinto** | Laberinto de azalea con cronómetro: encuentra el bloque de oro del centro |
+| **Trampolines** | Bloques de slime con torres para saltar |
+| **Hologramas** | Textos flotantes: créditos, estado de la cola, **ranking de victorias** y **mejores tiempos del parkour** en vivo |
+
+En el lobby no se recibe daño ni se pasa hambre. Los aldeanos se abren al tocarlos o al golpearlos.
+
+| | |
+|---|---|
+| ![Plaza](previews/lobby-01-plaza-y-aldeanos.png) | ![Portal](previews/lobby-02-portal-y-sala-de-espera.png) |
+| ![Parkour](previews/lobby-03-parkour-y-mural.png) | ![Laberinto](previews/lobby-04-laberinto-y-arco.png) |
+
+## Los 10 mapas
 
 ![Todos los mapas](previews/todos-los-mapas.png)
 
-## Funciones
+Cada mapa tiene su propia distribución (círculo, cuadrado o escalonada, con alturas distintas) y sus propias estructuras:
+
+| # | Mapa | Isla central | Islas intermedias | Islas de aparición |
+|---|---|---|---|---|
+| 1 | Pradera | Pozo techado con faroles | Molinos | Casitas de madera |
+| 2 | Desierto | Pirámide con entradas | Obeliscos | Pozos |
+| 3 | Glaciar | Picos de hielo | Torres de hielo | Iglús |
+| 4 | Infierno | Torre de ladrillo del Nether | Puentes de fortaleza | Arcos en ruinas |
+| 5 | El Fin | Torre de obsidiana elevada | Pilares con barrotes | Torres de purpur |
+| 6 | Champiñones | Champiñón gigante | Pares de champiñones (6 islas) | Casitas-hongo |
+| 7 | Jungla | Templo en ruinas | Árboles gigantes | Ruinas con musgo |
+| 8 | Océano | Monumento (atolón) | Barcos naufragados | Ruinas de prismarina |
+| 9 | Cerezos | Pagoda de 3 pisos | Pabellones | Portales torii |
+| 10 | Geoda | Geoda gigante con entradas | Medias geodas | Cristales de amatista |
+
+Además, todos los mapas tienen **túneles** que atraviesan la isla central, con luces y **cofres secretos** de botín especial, puntas que cuelgan bajo las islas, rocas flotantes y decoración temática.
+
+## Funciones de la partida
 
 | Función | Detalle |
 |---|---|
-| **10 mapas** | Pradera, Desierto, Glaciar, Infierno, El Fin, Champiñones, Jungla, Océano, Cerezos y Geoda |
-| **Rotación de mapas** | Secuencial (1 → 10), Aleatoria (nunca repite el anterior) o **Votación** de los jugadores en el lobby |
+| **Rotación de mapas** | Secuencial (1 → 10), aleatoria (nunca repite el anterior) o **por votación** |
 | **2 modos** | **Normal** (todos contra todos) y **Rojo vs Azul** (equipos; el daño entre compañeros se devuelve) |
-| **2 a 8 jugadores** | 8 islas de aparición con jaulas de cristal. Los que sobran entran como espectadores |
-| **Botín Normal / Extremo** | Cofres de isla de aparición, de islas intermedias y de la isla central, con mejor botín en el centro |
-| **Recarga de cofres** | Cada 2 minutos (configurable de 60 a 300 s) |
-| **Muerte súbita** | A los 10 min (configurable) todos van al centro. A los 2 min se declara empate |
-| **Cuenta atrás y jaulas** | 10 s dentro de la jaula. En Rojo vs Azul el suelo de la jaula es del color del equipo |
-| **Espectador** | Al morir pasas a espectador sobre la arena |
-| **Vacío** | Caer al vacío elimina. Si alguien te empujó, el asesinato cuenta para él |
-| **Límite del mapa** | Quien se aleja más de 56 bloques del centro (o sube demasiado) es devuelto, para que nada quede fuera del área que se limpia |
-| **Estadísticas** | Victorias y asesinatos (marcador `sw_wins` / `sw_kills`) |
-| **Lobby flotante** | Con piso de cristal sobre la arena. La partida empieza sola al llegar al mínimo de jugadores |
-| **Menú (brújula)** | Votar mapa, estadísticas, lista de mapas, iniciar partida y configuración |
-| **Configuración** | Modo, botín, rotación, inicio automático, jugadores mínimos, espera, recarga, tiempo límite y activar o desactivar cada mapa |
+| **2 a 8 jugadores** | Jaulas de cristal y 10 s de cuenta atrás. En Rojo vs Azul el suelo de la jaula es del color del equipo |
+| **Kits** | Se entregan al abrir la jaula (los puede desactivar un admin) |
+| **Botín Normal / Extremo** | Cofres de aparición, intermedios, centrales y secretos |
+| **Recarga de cofres** | Cada 2 minutos (configurable) |
+| **Muerte súbita** | A los 10 min (configurable) todos van al centro. 2 min después se declara empate |
+| **Vacío y empujones** | Si alguien te tira al vacío, el asesinato cuenta para él |
+| **Límite del mapa** | Quien se aleja demasiado es devuelto |
+| **Espectador** | Al morir, o entrando al portal con una partida en curso. Agáchate 2 s para volver |
 | **Reinicio automático** | Cada partida limpia la arena y la reconstruye desde cero |
 
 ## Instalación
 
-**Opción A: mundo listo**
-1. Abre `dist/SkyWars-Rotativo.mcworld` y Minecraft lo importa.
-2. Entra al mundo. El lobby se construye solo en unos segundos.
+| Archivo | Para qué |
+|---|---|
+| `dist/SkyWars-Rotativo.mctemplate` | **Recomendado.** Aparece en *Crear mundo nuevo → Plantillas* con su **ícono y créditos fijos**. Cada mundo que crees con ella ya trae todo |
+| `dist/SkyWars-Rotativo.mcworld` | El mundo listo para jugar |
+| `dist/SkyWars-Rotativo.mcaddon` | Solo los packs, para añadirlos a otro mundo (actívalos los dos) |
 
-**Opción B: en tu propio mundo**
-1. Abre `dist/SkyWars-Rotativo.mcpack`.
-2. Crea un mundo, de preferencia **Plano**, y en *Paquetes de comportamiento* activa **SkyWars Rotativo**.
-3. Las islas se construyen en el cielo (Y = 160 a 230) sobre el punto 0, 0, así que funciona con cualquier terreno.
+- Hacen falta los **trucos activados** (para `gamerule`, `tickingarea` y `fill`).
+- La primera vez, el lobby se construye solo en unos segundos.
+- **Sobre la miniatura del mundo:** Minecraft siempre reemplaza la imagen de un mundo por una captura al salir de él, y no hay forma de bloquearlo. La **plantilla** sí conserva su imagen y sus créditos en la lista de plantillas, así que úsala para que la portada siempre se vea bien.
 
-> Las dos opciones necesitan los **trucos activados** (para los comandos `gamerule`, `tickingarea` y `fill`).
+### Admins
 
-## Admins
-
-Si nadie tiene la etiqueta `sw_admin`, cualquiera puede configurar e iniciar. Para limitarlo a un admin:
+Si nadie tiene la etiqueta `sw_admin`, cualquiera puede usar el aldeano de Ajustes. Para limitarlo:
 
 ```
 /tag TuNombre add sw_admin
 ```
 
-Un admin puede iniciar con **un solo jugador** para probar los mapas. En ese caso la partida no termina sola.
+Un admin puede **forzar el inicio** con una sola persona en la cola para probar los mapas. En ese caso la partida no termina sola.
 
 ## Estructura
 
 ```
 behavior_pack/
   manifest.json
-  scripts/main.js     ← lógica del juego (fases, menús, eventos)
-  scripts/arenas.js   ← generador de las 10 arenas (lo usan el juego y las imágenes)
-  scripts/loot.js     ← tablas de botín Normal y Extremo
+  entities/texto.json     ← entidad invisible para los hologramas
+  scripts/main.js         ← lógica: partida, cola, aldeanos, minijuegos, menús
+  scripts/arenas.js       ← generador de las 10 arenas
+  scripts/lobby.js        ← generador del lobby y sus zonas
+  scripts/gen.js          ← utilidades de generación (islas, árboles…)
+  scripts/loot.js         ← botín Normal, Extremo y cofres secretos
+  scripts/kits.js         ← kits
+  scripts/logo.js         ← pixel art del logo (generado)
+resource_pack/            ← modelo de los hologramas, textos, ícono
+assets/logo-jeniermods.png
 tools/
-  render-previews.mjs ← genera previews/*.png con el mismo generador del juego
-  contact-sheet.mjs   ← junta las 10 imágenes en una
-  check-arenas.mjs    ← verifica las arenas (cofres tapados, jaulas ocupadas, arena sin soporte…)
-  build.py            ← crea dist/*.mcpack y dist/*.mcworld
-previews/             ← imágenes de los mapas
-dist/                 ← archivos para importar en Minecraft
+  render-previews.mjs     ← imágenes de previews/ e ícono del mundo
+  iso.mjs                 ← renderizador isométrico
+  check-arenas.mjs        ← verificador de las arenas
+  check-lobby.mjs         ← verificador del lobby (saltos del parkour, portal, laberinto…)
+  make-logo.py            ← convierte el logo en pixel art
+  build.py                ← crea dist/*.mcaddon, *.mcworld y *.mctemplate
 ```
 
-Para volver a generar las imágenes y los paquetes:
+Para volver a generar todo:
 
 ```bash
+python3 tools/make-logo.py
+node tools/check-arenas.mjs && node tools/check-lobby.mjs
 NODE_PATH=$(npm root -g) node tools/render-previews.mjs
-NODE_PATH=$(npm root -g) node tools/contact-sheet.mjs
 python3 tools/build.py
 ```
 
@@ -77,5 +127,5 @@ python3 tools/build.py
 
 - Usa `@minecraft/server` 1.11.0 y `@minecraft/server-ui` 1.2.0 (API estable, sin experimentos).
 - Los bloques que cambiaron de nombre entre versiones tienen un respaldo con el ID antiguo.
-- Las imágenes son vistas isométricas generadas desde el código, no capturas del juego.
-- **Fuego amigo (Rojo vs Azul):** la API estable no permite cancelar un golpe, así que la vida quitada por un compañero se devuelve justo después. Un golpe que mata de una sola vez (por ejemplo, TNT) sí puede eliminar a un compañero.
+- Las imágenes son vistas isométricas generadas con el mismo código que construye los mapas, no capturas del juego.
+- **Fuego amigo (Rojo vs Azul):** la API estable no permite cancelar un golpe, así que la vida quitada por un compañero se devuelve justo después. Un golpe que mata de una vez (por ejemplo, TNT) sí puede eliminar a un compañero.

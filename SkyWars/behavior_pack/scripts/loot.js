@@ -54,6 +54,13 @@ const EXTREME = {
   ],
 };
 
+// Premio extra de los cofres secretos de los túneles
+const SECRET = [
+  ["minecraft:enchanted_golden_apple", 1], ["minecraft:diamond_sword", 1, [["sharpness", 2]]],
+  ["minecraft:diamond_chestplate", 1, [["protection", 2]]], ["minecraft:ender_pearl", 3],
+  ["minecraft:bow", 1, [["power", 3], ["flame", 1]]], ["minecraft:totem_of_undying", 1],
+];
+
 // Lo que un cofre de aparición SIEMPRE tiene, para que nadie empiece sin nada.
 const GUARANTEED = {
   normal: [["minecraft:cobblestone", 24], ["minecraft:stone_sword", 1]],
@@ -90,8 +97,9 @@ function makeItem(id, amount, enchants) {
  * @param {"spawn"|"mid"|"center"} kind
  * @param {"normal"|"extreme"} tier
  * @param {boolean} withGuaranteed  solo el primer cofre de cada isla de aparición
+ * @param {boolean} secret  cofre escondido en un túnel: trae un premio extra
  */
-export function fillChest(container, kind, tier, withGuaranteed) {
+export function fillChest(container, kind, tier, withGuaranteed, secret = false) {
   if (container.clearAll) container.clearAll();
   else for (let i = 0; i < container.size; i++) container.setItem(i, undefined);
   const pool = (tier === "extreme" ? EXTREME : NORMAL)[kind];
@@ -104,6 +112,11 @@ export function fillChest(container, kind, tier, withGuaranteed) {
       const it = makeItem(id, n);
       if (it) container.setItem(slots[s++], it);
     }
+  }
+  if (secret) {
+    const [id, n, ench] = SECRET[Math.floor(Math.random() * SECRET.length)];
+    const it = makeItem(id, n, ench);
+    if (it) container.setItem(slots[s++], it);
   }
   for (let i = 0; i < count; i++) {
     const [id, , a, b, ench] = pick(pool);

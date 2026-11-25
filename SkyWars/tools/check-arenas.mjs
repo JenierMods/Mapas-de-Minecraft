@@ -2,7 +2,7 @@
 // cofres tapados, jaulas ocupadas, bloques fuera del área, etc.). Uso: node tools/check-arenas.mjs
 import { generateArena, THEMES, ARENA_BOUNDS, BORDER } from "../behavior_pack/scripts/arenas.js";
 const GRAVITY = new Set(["sand", "gravel"]);
-const NEEDS_SUPPORT = new Set(["poppy","dandelion","deadbush","crimson_roots","brown_mushroom","red_mushroom","fern","pink_petals","amethyst_cluster","cactus","chest","lantern","end_rod"]);
+const NEEDS_SUPPORT = new Set(["poppy","dandelion","deadbush","crimson_roots","crimson_fungus","brown_mushroom","red_mushroom","fern","short_grass","azure_bluet","pink_petals","amethyst_cluster","cactus","chest","lantern","soul_lantern","end_rod","snow_layer","carved_pumpkin"]);
 let problems = 0;
 for (let i = 0; i < THEMES.length; i++) {
   const a = generateArena(i);
@@ -13,7 +13,8 @@ for (let i = 0; i < THEMES.length; i++) {
   for (const b of a.blocks) {
     maxR = Math.max(maxR, Math.abs(b.x), Math.abs(b.z)); minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y);
     if (GRAVITY.has(b.id) && !at(b.x, b.y - 1, b.z)) err(`arena sin soporte en ${b.x},${b.y},${b.z}`);
-    if (NEEDS_SUPPORT.has(b.id) && b.id !== "cactus" && !at(b.x, b.y - 1, b.z)) err(`${b.id} flotando en ${b.x},${b.y},${b.z}`);
+    const hanging = b.states?.hanging && at(b.x, b.y + 1, b.z);
+    if (NEEDS_SUPPORT.has(b.id) && b.id !== "cactus" && !hanging && !at(b.x, b.y - 1, b.z)) err(`${b.id} flotando en ${b.x},${b.y},${b.z}`);
     if (b.id === "cactus") {
       const below = at(b.x, b.y - 1, b.z)?.id;
       if (below !== "sand" && below !== "cactus") err(`cactus sin arena debajo`);
@@ -23,7 +24,13 @@ for (let i = 0; i < THEMES.length; i++) {
   }
   if (maxR > ARENA_BOUNDS.r || maxR > BORDER) err(`bloques fuera del área (${maxR})`);
   if (minY < ARENA_BOUNDS.yMin || maxY > ARENA_BOUNDS.yMax) err(`altura fuera del área ${minY}..${maxY}`);
+  for (const b of a.blocks) if (b.id === "vine") {
+    const bits = b.states?.vine_direction_bits ?? 0, dirs = [[1, [0,0,1]], [2, [-1,0,0]], [4, [0,0,-1]], [8, [1,0,0]]];
+    const ok = dirs.some(([bit, [dx,,dz]]) => (bits & bit) && at(b.x+dx, b.y, b.z+dz));
+    if (!ok) err(`liana sin soporte en ${b.x},${b.y},${b.z}`);
+  }
   for (const c of a.chests) {
+    for (const d of a.chests) if (c !== d && c.y === d.y && Math.abs(c.x-d.x) + Math.abs(c.z-d.z) === 1) err(`cofres juntos (se unen en uno doble) en ${c.x},${c.z}`);
     if (at(c.x, c.y, c.z)?.id !== "chest") err(`cofre sobrescrito en ${c.x},${c.y},${c.z}`);
     if (at(c.x, c.y + 1, c.z)) err(`cofre tapado en ${c.x},${c.y},${c.z}`);
   }

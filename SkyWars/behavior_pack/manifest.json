@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "header": {
-    "name": "SkyWars Rotativo",
-    "description": "SkyWars con 10 mapas que rotan cada partida · Normal y Rojo vs Azul · Botín Normal/Extremo",
+    "name": "SkyWars Rotativo §7(JenierMods OFC)",
+    "description": "SkyWars con 10 mapas rotativos, lobby con minijuegos y kits.\n§aCreado por JenierMods OFC",
     "uuid": "f8a8de97-25d6-492f-a48a-eafb508062b0",
     "version": [
-      1,
+      2,
       0,
       0
     ],
@@ -21,7 +21,7 @@
       "language": "javascript",
       "uuid": "cd16bf89-97fe-477f-98d1-c4b406ed9d33",
       "version": [
-        1,
+        2,
         0,
         0
       ],
@@ -36,11 +36,19 @@
     {
       "module_name": "@minecraft/server-ui",
       "version": "1.2.0"
+    },
+    {
+      "uuid": "2d913b40-5b7b-49af-b167-d11b7d40694f",
+      "version": [
+        2,
+        0,
+        0
+      ]
     }
   ],
   "metadata": {
     "authors": [
-      "JenierMods"
+      "JenierMods OFC"
     ]
   }
 }
